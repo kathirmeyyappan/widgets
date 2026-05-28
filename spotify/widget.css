@@ -1,15 +1,76 @@
-html, body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
+*, *::before, *::after { box-sizing: border-box; }
 
-#card { display: flex; gap: 12px; align-items: center; max-width: 420px;
-	padding: 12px; border: 1px solid #ccc; border-radius: 8px;
-	text-decoration: none; color: inherit; }
+html, body {
+	margin: 0;
+	padding: 16px;
+	background: #1a1a1a;
+	font-family: system-ui, sans-serif;
+}
 
-#art { width: 64px; height: 64px; background: #eee; object-fit: cover; }
+#card {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	max-width: 380px;
+	padding: 12px;
+	background: #2a2a2a;
+	border-radius: 10px;
+	text-decoration: none;
+	color: inherit;
+}
 
-.meta { flex: 1; min-width: 0; }
-.meta > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#art {
+	width: 56px;
+	height: 56px;
+	border-radius: 4px;
+	object-fit: cover;
+	background: #3a3a3a;
+	flex-shrink: 0;
+}
 
-.bar { margin-top: 6px; height: 3px; background: #eee; }
-#progress { height: 100%; width: 0; background: #1db954; }
+.meta {
+	flex: 1;
+	min-width: 0;
+}
 
-#controls { margin-top: 16px; display: flex; gap: 8px; }
+#status-label {
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: #aaa;
+	margin-bottom: 3px;
+}
+
+#title {
+	font-size: 14px;
+	font-weight: 600;
+	color: #fff;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+#artist {
+	font-size: 12px;
+	color: #aaa;
+	margin-top: 1px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.bar {
+	margin-top: 8px;
+	height: 3px;
+	background: #444;
+	border-radius: 2px;
+}
+
+#progress {
+	height: 100%;
+	width: 0;
+	background: #1db954;
+	border-radius: 2px;
+	transition: width 1s linear;
+}
