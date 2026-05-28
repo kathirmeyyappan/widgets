@@ -1,0 +1,15 @@
+html, body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
+
+#card { display: flex; gap: 12px; align-items: center; max-width: 420px;
+	padding: 12px; border: 1px solid #ccc; border-radius: 8px;
+	text-decoration: none; color: inherit; }
+
+#art { width: 64px; height: 64px; background: #eee; object-fit: cover; }
+
+.meta { flex: 1; min-width: 0; }
+.meta > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.bar { margin-top: 6px; height: 3px; background: #eee; }
+#progress { height: 100%; width: 0; background: #1db954; }
+
+#controls { margin-top: 16px; display: flex; gap: 8px; }
