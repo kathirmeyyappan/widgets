@@ -31,8 +31,15 @@ function tick() {
 	els.timeCurrent.textContent = fmt(current);
 }
 
+function safeUrl(url) {
+	try {
+		const u = new URL(url ?? "");
+		return u.protocol === "https:" ? url : "#";
+	} catch { return "#"; }
+}
+
 function render(state) {
-	els.card.href = state.songUrl ?? "#";
+	els.card.href = safeUrl(state.songUrl);
 
 	const artUrl = state.albumArt ?? "";
 	els.art.src = artUrl;
