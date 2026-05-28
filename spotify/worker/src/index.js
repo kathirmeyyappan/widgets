@@ -1,7 +1,15 @@
 const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
 const SPOTIFY_NOW_PLAYING_URL = "https://api.spotify.com/v1/me/player/currently-playing";
 const SPOTIFY_RECENTLY_PLAYED_URL = "https://api.spotify.com/v1/me/player/recently-played?limit=1";
-const ALLOWED_ORIGIN = "https://kathirm.com";
+const ALLOWED_ORIGINS = new Set(["https://kathirm.com"]);
+
+function isAllowedOrigin(origin) {
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  try {
+    const url = new URL(origin);
+    return url.hostname === "127.0.0.1";
+  } catch { return false; }
+}
 
 async function getAccessToken(env) {
   const creds = btoa(`${env.SPOTIFY_CLIENT_ID}:${env.SPOTIFY_CLIENT_SECRET}`);
@@ -18,7 +26,7 @@ async function getAccessToken(env) {
 }
 
 function corsHeaders(origin) {
-  const allowed = origin === ALLOWED_ORIGIN ? origin : ALLOWED_ORIGIN;
+  const allowed = isAllowedOrigin(origin) ? origin : "https://kathirm.com";
   return {
     "Access-Control-Allow-Origin": allowed,
     "Access-Control-Allow-Methods": "GET, OPTIONS",
