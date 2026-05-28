@@ -175,9 +175,9 @@ html, body {
 	transition: width 1s linear, background 0.3s;
 }
 
-/* Idle (last played) — muted green → gray */
-[data-state="idle"] .spotify-icon { fill: #555; }
-[data-state="idle"] #status-label { color: #555; }
+/* Idle (last played) — clearly visible but distinct from active green */
+[data-state="idle"] .spotify-icon { fill: #999; }
+[data-state="idle"] #status-label { color: #999; }
 [data-state="idle"] #progress { background: #444; }
 
 /* Offline (not playing, no recent track) */
