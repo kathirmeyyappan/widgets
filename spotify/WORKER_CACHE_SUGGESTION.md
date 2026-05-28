@@ -1,10 +1,10 @@
 # Worker Response Caching
 
-If the site ever gets enough concurrent visitors that Spotify starts rate-limiting the worker, add a module-level response cache to `worker/src/index.js`.
+Add this if Spotify starts returning 429s. Not worth it for a personal portfolio — Spotify's limits are generous and caching adds lag.
 
-## The idea
+## How it works
 
-Every visitor polls the worker every 7s, but they all want the same data. Instead of calling Spotify's API on every request, cache the last result in the worker and serve it to everyone within the TTL window.
+All visitors want the same data. Cache the last Spotify response in the worker and serve it to everyone within the TTL, so Spotify's API is called at most once per TTL window regardless of traffic.
 
 ```js
 let responseCache = { data: null, expiresAt: 0 };
@@ -14,18 +14,25 @@ if (Date.now() < responseCache.expiresAt) {
   return json(responseCache.data, origin);
 }
 
-// ...fetch from Spotify as normal, build the response object...
+// ...fetch from Spotify, build responseObject...
 
-responseCache = { data: responseObject, expiresAt: Date.now() + 7000 };
+responseCache = { data: responseObject, expiresAt: Date.now() + TTL_MS };
 return json(responseObject, origin);
 ```
 
-## Trade-off
+## TTL trade-off
 
-Cache TTL matches the poll interval (7s), so worst-case status change lag goes from **7s → 14s** (cache refreshes right as you pause → stale hit → 7s later cache expires → Spotify called).
+Worst-case status change lag = **TTL + poll interval (7s)**.
 
-## When to bother
+| TTL | Worst-case lag | Spotify calls (100 visitors) |
+|-----|---------------|------------------------------|
+| 0s (no cache) | 7s | 100 / 7s |
+| 2s | 9s | ~3–4 / 7s |
+| 7s | 14s | ~1 / 7s |
+| 14s | 21s | ~1 / 14s |
 
-Not worth it for a personal portfolio with a handful of concurrent visitors — Spotify's rate limits are generous and the extra latency is noticeable. Add this if Spotify starts returning 429s.
+A 2–3s TTL gets most of the protection with barely noticeable extra lag.
 
-Cloudflare may spin up multiple Worker isolates under high load, so module-level state isn't globally shared. For truly shared caching across isolates, use KV instead — but that's overkill unless the isolate-splitting is actually causing duplicate Spotify calls at scale.
+## Isolate caveat
+
+Cloudflare may spin up multiple Worker isolates under load — module-level state isn't globally shared, so you might see a few more Spotify calls than the table above. Use KV for a truly shared cache, but that's overkill unless isolate-splitting is measurably causing issues.
