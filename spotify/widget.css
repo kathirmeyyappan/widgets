@@ -1,45 +1,187 @@
-html, body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
+html, body {
+	margin: 0;
+	padding: 0;
+	background: transparent;
+	font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
 
 #card {
+	position: relative;
 	display: flex;
-	gap: 12px;
+	gap: 14px;
 	align-items: center;
 	max-width: 380px;
-	padding: 12px;
-	border: 1px solid #ccc;
-	border-radius: 8px;
+	padding: 14px;
+	border-radius: 12px;
 	text-decoration: none;
-	color: inherit;
+	overflow: hidden;
+	background: #121212;
+	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+
+/* Blurred album art wash behind everything */
+#blur-bg {
+	position: absolute;
+	top: -40px;
+	left: -40px;
+	width: calc(100% + 80px);
+	height: calc(100% + 80px);
+	object-fit: cover;
+	filter: blur(40px) brightness(0.45) saturate(1.4);
+	z-index: 0;
+}
+
+/* Dark overlay to keep text readable */
+#card::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.5);
+	z-index: 1;
+	pointer-events: none;
 }
 
 #art {
-	width: 56px;
-	height: 56px;
-	border-radius: 4px;
+	position: relative;
+	width: 72px;
+	height: 72px;
+	border-radius: 6px;
 	object-fit: cover;
-	background: #eee;
+	background: #2a2a2a;
 	flex-shrink: 0;
+	z-index: 2;
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
 }
 
-.meta { flex: 1; min-width: 0; }
+.meta {
+	position: relative;
+	flex: 1;
+	min-width: 0;
+	z-index: 2;
+}
+
+.status-row {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	margin-bottom: 5px;
+}
+
+.spotify-icon {
+	width: 13px;
+	height: 13px;
+	flex-shrink: 0;
+	fill: #1db954;
+	transition: fill 0.3s;
+}
 
 #status-label {
 	font-size: 10px;
-	font-weight: 600;
-	letter-spacing: 0.08em;
+	font-weight: 700;
+	letter-spacing: 0.1em;
 	text-transform: uppercase;
-	color: #888;
-	margin-bottom: 3px;
+	color: #1db954;
+	transition: color 0.3s;
 }
 
-#title, #artist {
+/* Animated equalizer bars — only visible when playing */
+.eq-bars {
+	display: none;
+	align-items: flex-end;
+	gap: 2px;
+	height: 10px;
+	margin-left: 2px;
+}
+
+[data-state="playing"] .eq-bars {
+	display: flex;
+}
+
+.eq-bars span {
+	display: block;
+	width: 2px;
+	background: #1db954;
+	border-radius: 1px;
+	transform-origin: bottom;
+	animation: eq-bounce 0.7s ease-in-out infinite alternate;
+}
+
+.eq-bars span:nth-child(1) { height: 5px; animation-delay: 0s; }
+.eq-bars span:nth-child(2) { height: 9px; animation-delay: 0.15s; }
+.eq-bars span:nth-child(3) { height: 6px; animation-delay: 0.3s; }
+
+@keyframes eq-bounce {
+	from { transform: scaleY(0.35); }
+	to   { transform: scaleY(1); }
+}
+
+#title, #artist, #album {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-#title { font-size: 14px; font-weight: 600; }
-#artist { font-size: 12px; color: #666; margin-top: 1px; }
+#title {
+	font-size: 14px;
+	font-weight: 700;
+	color: #ffffff;
+}
 
-.bar { margin-top: 8px; height: 3px; background: #eee; border-radius: 2px; }
-#progress { height: 100%; width: 0; background: #1db954; border-radius: 2px; transition: width 1s linear; }
+#artist {
+	font-size: 12px;
+	color: #b3b3b3;
+	margin-top: 2px;
+}
+
+#album {
+	font-size: 11px;
+	color: #777;
+	margin-top: 1px;
+}
+
+.progress-row {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin-top: 10px;
+}
+
+#time-current, #time-total {
+	font-size: 10px;
+	color: #888;
+	font-variant-numeric: tabular-nums;
+	flex-shrink: 0;
+	transition: color 0.3s;
+}
+
+[data-state="idle"] #time-current,
+[data-state="idle"] #time-total { color: #555; }
+
+[data-state="offline"] #time-current,
+[data-state="offline"] #time-total { color: #444; }
+
+.bar {
+	flex: 1;
+	height: 3px;
+	background: rgba(255, 255, 255, 0.12);
+	border-radius: 2px;
+}
+
+#progress {
+	height: 100%;
+	width: 0;
+	background: #1db954;
+	border-radius: 2px;
+	transition: width 1s linear, background 0.3s;
+}
+
+/* Idle (last played) — muted green → gray */
+[data-state="idle"] .spotify-icon { fill: #555; }
+[data-state="idle"] #status-label { color: #555; }
+[data-state="idle"] #progress { background: #444; }
+
+/* Offline (not playing, no recent track) */
+[data-state="offline"] #blur-bg { opacity: 0; }
+[data-state="offline"] .spotify-icon { fill: #444; }
+[data-state="offline"] #status-label { color: #444; }
+[data-state="offline"] #progress { background: #333; }
