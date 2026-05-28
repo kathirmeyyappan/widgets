@@ -1,3 +1,5 @@
+const WORKER_URL = "https://spotify-widget.kathirmey.workers.dev";
+
 const $ = id => document.getElementById(id);
 
 const els = {
@@ -44,4 +46,14 @@ const mockIdle = { isPlaying: false };
 $("mock-playing").addEventListener("click", () => render(mockPlaying));
 $("mock-idle").addEventListener("click", () => render(mockIdle));
 
-render(mockIdle);
+async function poll() {
+  try {
+    const res = await fetch(WORKER_URL);
+    const data = await res.json();
+    els.title.textContent = data.message;
+  } catch (e) {
+    els.title.textContent = "worker unreachable";
+  }
+}
+
+poll();
