@@ -77,7 +77,7 @@ export default {
     if (!track) return json({ isPlaying: false }, origin);
 
     return json({
-      isPlaying: true,
+      isPlaying: npData.is_playing,
       title: track.name,
       artist: track.artists.map(a => a.name).join(", "),
       album: track.album.name,
@@ -85,6 +85,7 @@ export default {
       songUrl: track.external_urls.spotify,
       progressMs: npData.progress_ms,
       durationMs: track.duration_ms,
+      capturedAt: npData.timestamp,
     }, origin);
   },
 };
