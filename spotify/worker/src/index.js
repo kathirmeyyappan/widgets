@@ -104,6 +104,20 @@ export default {
       const track = npData?.item;
       if (!track) return json({ isPlaying: false }, origin);
 
+      // Prime the last-played cache with the current track for free, so
+      // pausing shows this song without ever calling recently-played.
+      recentCache = {
+        isPlaying: false,
+        title: track.name,
+        artist: track.artists.map(a => a.name).join(", "),
+        album: track.album.name,
+        albumArt: track.album.images[0]?.url ?? null,
+        songUrl: track.external_urls.spotify,
+        progressMs: 0,
+        durationMs: track.duration_ms,
+      };
+      recentCachedAt = Date.now();
+
       return json({
         isPlaying: npData.is_playing,
         title: track.name,
