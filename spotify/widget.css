@@ -9,8 +9,8 @@ html, body {
 #card {
 	position: relative;
 	display: flex;
-	gap: 20px;
 	align-items: center;
+	justify-content: center;
 	width: 100%;
 	min-height: 100vh;
 	padding: 24px;
@@ -19,6 +19,16 @@ html, body {
 	color: inherit;
 	overflow: hidden;
 	background: #121212;
+}
+
+.inner {
+	position: relative;
+	z-index: 2;
+	display: flex;
+	align-items: center;
+	gap: 20px;
+	width: 100%;
+	max-width: 480px;
 }
 
 /* Blurred album art wash behind everything */
