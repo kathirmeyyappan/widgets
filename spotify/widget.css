@@ -4,9 +4,6 @@ html, body {
 	height: 100%;
 	background: #121212;
 	font-family: 'Inter', system-ui, -apple-system, sans-serif;
-	display: flex;
-	align-items: center;
-	justify-content: center;
 }
 
 #card {
