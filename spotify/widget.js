@@ -82,6 +82,23 @@ async function poll() {
 	}
 }
 
+let pollInterval = null;
+
+function startPolling() {
+	if (pollInterval) return;
+	poll();
+	pollInterval = setInterval(poll, POLL_INTERVAL_MS);
+}
+
+function stopPolling() {
+	clearInterval(pollInterval);
+	pollInterval = null;
+}
+
+document.addEventListener("visibilitychange", () => {
+	if (document.hidden) stopPolling();
+	else startPolling();
+});
+
 setInterval(tick, 1000);
-poll();
-setInterval(poll, POLL_INTERVAL_MS);
+startPolling();
