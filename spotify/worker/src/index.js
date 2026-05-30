@@ -45,9 +45,14 @@ function json(data, origin) {
   });
 }
 
-async function spotifyJson(res) {
+async function spotifyJson(res, label) {
   const text = await res.text();
-  try { return JSON.parse(text); } catch { return null; }
+  try {
+    return JSON.parse(text);
+  } catch {
+    console.error(`[${label}] status=${res.status} body=${text.slice(0, 200)}`);
+    return null;
+  }
 }
 
 export default {
@@ -69,7 +74,7 @@ export default {
         const rpRes = await fetch(SPOTIFY_RECENTLY_PLAYED_URL, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const rpData = await spotifyJson(rpRes);
+        const rpData = await spotifyJson(rpRes, "recently-played");
         const track = rpData?.items?.[0]?.track;
         if (!track) return json({ isPlaying: false }, origin);
         return json({
@@ -84,7 +89,7 @@ export default {
         }, origin);
       }
 
-      const npData = await spotifyJson(npRes);
+      const npData = await spotifyJson(npRes, "currently-playing");
       const track = npData?.item;
       if (!track) return json({ isPlaying: false }, origin);
 
@@ -99,8 +104,9 @@ export default {
         durationMs: track.duration_ms,
         capturedAt: npData.timestamp,
       }, origin);
-    } catch {
-      return json({ isPlaying: false }, origin);
+    } catch (e) {
+      console.error(`[worker] uncaught: ${e.message}`);
+      return json({ isPlaying: false, error: e.message }, origin);
     }
   },
 };
