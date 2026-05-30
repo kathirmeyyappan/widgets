@@ -11,7 +11,11 @@ function isAllowedOrigin(origin) {
   } catch { return false; }
 }
 
+let cachedToken = null;
+let tokenExpiresAt = 0;
+
 async function getAccessToken(env) {
+  if (cachedToken && Date.now() < tokenExpiresAt) return cachedToken;
   const creds = btoa(`${env.SPOTIFY_CLIENT_ID}:${env.SPOTIFY_CLIENT_SECRET}`);
   const res = await fetch(SPOTIFY_TOKEN_URL, {
     method: "POST",
@@ -22,7 +26,9 @@ async function getAccessToken(env) {
     body: `grant_type=refresh_token&refresh_token=${env.SPOTIFY_REFRESH_TOKEN}`,
   });
   const data = await res.json();
-  return data.access_token;
+  cachedToken = data.access_token;
+  tokenExpiresAt = Date.now() + (data.expires_in - 60) * 1000;
+  return cachedToken;
 }
 
 function corsHeaders(origin) {
