@@ -50,7 +50,8 @@ async function spotifyJson(res, label) {
   try {
     return JSON.parse(text);
   } catch {
-    console.error(`[${label}] status=${res.status} body=${text.slice(0, 200)}`);
+    const retryAfter = res.headers.get("Retry-After");
+    console.error(`[${label}] status=${res.status} retry-after=${retryAfter} body=${text.slice(0, 200)}`);
     return null;
   }
 }
