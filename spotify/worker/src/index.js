@@ -45,6 +45,11 @@ function json(data, origin) {
   });
 }
 
+async function spotifyJson(res) {
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { return null; }
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin") ?? "";
@@ -53,45 +58,49 @@ export default {
       return new Response(null, { headers: corsHeaders(origin) });
     }
 
-    const token = await getAccessToken(env);
+    try {
+      const token = await getAccessToken(env);
 
-    const npRes = await fetch(SPOTIFY_NOW_PLAYING_URL, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (npRes.status === 204) {
-      const rpRes = await fetch(SPOTIFY_RECENTLY_PLAYED_URL, {
+      const npRes = await fetch(SPOTIFY_NOW_PLAYING_URL, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const rpData = await rpRes.json();
-      const track = rpData.items?.[0]?.track;
+
+      if (npRes.status === 204) {
+        const rpRes = await fetch(SPOTIFY_RECENTLY_PLAYED_URL, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const rpData = await spotifyJson(rpRes);
+        const track = rpData?.items?.[0]?.track;
+        if (!track) return json({ isPlaying: false }, origin);
+        return json({
+          isPlaying: false,
+          title: track.name,
+          artist: track.artists.map(a => a.name).join(", "),
+          album: track.album.name,
+          albumArt: track.album.images[0]?.url ?? null,
+          songUrl: track.external_urls.spotify,
+          progressMs: 0,
+          durationMs: track.duration_ms,
+        }, origin);
+      }
+
+      const npData = await spotifyJson(npRes);
+      const track = npData?.item;
       if (!track) return json({ isPlaying: false }, origin);
+
       return json({
-        isPlaying: false,
+        isPlaying: npData.is_playing,
         title: track.name,
         artist: track.artists.map(a => a.name).join(", "),
         album: track.album.name,
         albumArt: track.album.images[0]?.url ?? null,
         songUrl: track.external_urls.spotify,
-        progressMs: 0,
+        progressMs: npData.progress_ms,
         durationMs: track.duration_ms,
+        capturedAt: npData.timestamp,
       }, origin);
+    } catch {
+      return json({ isPlaying: false }, origin);
     }
-
-    const npData = await npRes.json();
-    const track = npData.item;
-    if (!track) return json({ isPlaying: false }, origin);
-
-    return json({
-      isPlaying: npData.is_playing,
-      title: track.name,
-      artist: track.artists.map(a => a.name).join(", "),
-      album: track.album.name,
-      albumArt: track.album.images[0]?.url ?? null,
-      songUrl: track.external_urls.spotify,
-      progressMs: npData.progress_ms,
-      durationMs: track.duration_ms,
-      capturedAt: npData.timestamp,
-    }, origin);
   },
 };
