@@ -14,6 +14,10 @@ function isAllowedOrigin(origin) {
 let cachedToken = null;
 let tokenExpiresAt = 0;
 
+const RECENT_TTL_MS = 60000;
+let recentCache = null;
+let recentCachedAt = 0;
+
 async function getAccessToken(env) {
   if (cachedToken && Date.now() < tokenExpiresAt) return cachedToken;
   const creds = btoa(`${env.SPOTIFY_CLIENT_ID}:${env.SPOTIFY_CLIENT_SECRET}`);
@@ -72,22 +76,28 @@ export default {
       });
 
       if (npRes.status === 204) {
-        const rpRes = await fetch(SPOTIFY_RECENTLY_PLAYED_URL, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const rpData = await spotifyJson(rpRes, "recently-played");
-        const track = rpData?.items?.[0]?.track;
-        if (!track) return json({ isPlaying: false }, origin);
-        return json({
-          isPlaying: false,
-          title: track.name,
-          artist: track.artists.map(a => a.name).join(", "),
-          album: track.album.name,
-          albumArt: track.album.images[0]?.url ?? null,
-          songUrl: track.external_urls.spotify,
-          progressMs: 0,
-          durationMs: track.duration_ms,
-        }, origin);
+        // Last-played barely changes while idle, so cache it and only
+        // re-fetch once the TTL lapses. Keeps us well under Spotify's
+        // rate limit instead of hitting recently-played every poll.
+        if (!recentCache || Date.now() - recentCachedAt > RECENT_TTL_MS) {
+          const rpRes = await fetch(SPOTIFY_RECENTLY_PLAYED_URL, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const rpData = await spotifyJson(rpRes, "recently-played");
+          const track = rpData?.items?.[0]?.track;
+          recentCache = track ? {
+            isPlaying: false,
+            title: track.name,
+            artist: track.artists.map(a => a.name).join(", "),
+            album: track.album.name,
+            albumArt: track.album.images[0]?.url ?? null,
+            songUrl: track.external_urls.spotify,
+            progressMs: 0,
+            durationMs: track.duration_ms,
+          } : { isPlaying: false };
+          recentCachedAt = Date.now();
+        }
+        return json(recentCache, origin);
       }
 
       const npData = await spotifyJson(npRes, "currently-playing");
