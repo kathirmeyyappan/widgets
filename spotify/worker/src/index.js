@@ -85,16 +85,23 @@ export default {
           });
           const rpData = await spotifyJson(rpRes, "recently-played");
           const track = rpData?.items?.[0]?.track;
-          recentCache = track ? {
-            isPlaying: false,
-            title: track.name,
-            artist: track.artists.map(a => a.name).join(", "),
-            album: track.album.name,
-            albumArt: track.album.images[0]?.url ?? null,
-            songUrl: track.external_urls.spotify,
-            progressMs: 0,
-            durationMs: track.duration_ms,
-          } : { isPlaying: false };
+          if (track) {
+            recentCache = {
+              isPlaying: false,
+              title: track.name,
+              artist: track.artists.map(a => a.name).join(", "),
+              album: track.album.name,
+              albumArt: track.album.images[0]?.url ?? null,
+              songUrl: track.external_urls.spotify,
+              progressMs: 0,
+              durationMs: track.duration_ms,
+            };
+          } else if (!recentCache) {
+            // Fetch failed (e.g. rate limited) with nothing cached yet —
+            // fall back to offline. If a track is already cached, keep it
+            // rather than clobbering it with not-playing.
+            recentCache = { isPlaying: false };
+          }
           recentCachedAt = Date.now();
         }
         return json(recentCache, origin);
