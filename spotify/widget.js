@@ -52,7 +52,10 @@ function render(state) {
 	if (state.isPlaying) {
 		els.card.dataset.state = "playing";
 		els.statusLabel.textContent = "Now playing";
-		anchor = { ms: state.progressMs, at: state.capturedAt ?? Date.now(), duration: state.durationMs, active: true };
+		const now = Date.now();
+		const elapsed = state.capturedAt ? now - state.capturedAt : 0;
+		const adjustedMs = Math.min(state.progressMs + elapsed, state.durationMs);
+		anchor = { ms: adjustedMs, at: now, duration: state.durationMs, active: true };
 		els.timeTotal.textContent = fmt(state.durationMs);
 		tick();
 	} else if (state.title) {
