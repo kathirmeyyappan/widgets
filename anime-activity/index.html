@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>Recent Anime &amp; Manga Activity</title>
+	<link rel="stylesheet" href="widget.css">
+</head>
+<body>
+	<div id="card" data-state="loading">
+		<div class="inner">
+			<div class="header-row">
+				<svg class="mal-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+					<path d="M3 5h18v14H3V5zm2 2v10h14V7H5zm2 2h4v6H9v-2H7V9zm6 0h4v2h-2v4h-2V9z"/>
+				</svg>
+				<div id="status-label">Recent Updates</div>
+			</div>
+			<ul id="entries"></ul>
+			<div id="message"></div>
+		</div>
+	</div>
+	<script src="widget.js" type="module"></script>
+</body>
+</html>
