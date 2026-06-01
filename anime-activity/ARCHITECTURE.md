@@ -23,14 +23,12 @@ Filters out `plan_to_watch` / `plan_to_read`, returns `{ anime: [...], manga: [.
 
 ## Worker
 
-- OAuth refresh-token flow with an in-memory access-token cache (refresh ~1 h before MAL's 30-day expiry).
+- Single secret: `MAL_ACCESS_TOKEN` (Cloudflare secret).
+- Parallel fetch of animelist + mangalist with `sort=list_updated_at`, filter plan-to-watch/read, shape the response.
+- No OAuth refresh logic — MAL access tokens last ~30 days; when the worker starts 401-ing, regenerate the token and re-run `wrangler secret put MAL_ACCESS_TOKEN`.
 - Same CORS pattern as the Spotify worker (`https://kathirm.com` + `127.0.0.1` for local).
-- No retry, no per-request caching — MAL's official API is reliable enough that a single bad response should surface to the user.
 
-Secrets (set via Cloudflare dashboard):
-- `MAL_CLIENT_ID`, `MAL_CLIENT_SECRET`, `MAL_REFRESH_TOKEN`
-
-See `worker/README.md` for deploy + setup.
+See `worker/README.md` for deploy + token setup.
 
 ## Files
 

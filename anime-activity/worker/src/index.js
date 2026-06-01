@@ -1,4 +1,3 @@
-const TOKEN_URL = "https://myanimelist.net/v1/oauth2/token";
 const ANIME_FIELDS = "list_status{status,score,num_episodes_watched,updated_at},num_episodes,main_picture";
 const MANGA_FIELDS = "list_status{status,score,num_chapters_read,updated_at},num_chapters,main_picture";
 const ALLOWED_ORIGINS = new Set(["https://kathirm.com"]);
@@ -34,31 +33,6 @@ function json(data, origin, status = 200) {
     status,
     headers: { "Content-Type": "application/json", ...corsHeaders(origin) },
   });
-}
-
-// MAL access tokens expire in ~30 days. Cache in memory and refresh ~1h
-// before expiry to avoid hitting the token endpoint every request.
-let cachedToken = null;
-let tokenExpiresAt = 0;
-
-async function getAccessToken(env) {
-  if (cachedToken && Date.now() < tokenExpiresAt) return cachedToken;
-  const body = new URLSearchParams({
-    client_id: env.MAL_CLIENT_ID,
-    client_secret: env.MAL_CLIENT_SECRET,
-    grant_type: "refresh_token",
-    refresh_token: env.MAL_REFRESH_TOKEN,
-  });
-  const res = await fetch(TOKEN_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-  });
-  if (!res.ok) throw new Error(`token ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-  cachedToken = data.access_token;
-  tokenExpiresAt = Date.now() + (data.expires_in - 3600) * 1000;
-  return cachedToken;
 }
 
 async function fetchList(token, kind, fetchLimit) {
@@ -103,10 +77,9 @@ export default {
     const limit = Math.max(1, Math.min(20, parseInt(params.get("limit"), 10) || DEFAULT_LIMIT));
 
     try {
-      const token = await getAccessToken(env);
       const [animeRes, mangaRes] = await Promise.all([
-        fetchList(token, "anime", limit + FETCH_BUFFER),
-        fetchList(token, "manga", limit + FETCH_BUFFER),
+        fetchList(env.MAL_ACCESS_TOKEN, "anime", limit + FETCH_BUFFER),
+        fetchList(env.MAL_ACCESS_TOKEN, "manga", limit + FETCH_BUFFER),
       ]);
       return json({
         anime: shape(animeRes, "anime", limit),
