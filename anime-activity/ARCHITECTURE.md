@@ -10,6 +10,10 @@ Static frontend that calls the [Jikan v4 API](https://docs.api.jikan.moe/) direc
 
 `widget.js`: fetch → for each medium independently filter out `Plan to Watch/Read` → sort by date desc → slice to `LIMIT` → render into its own section. Anime and manga are never merged so a dormant medium can't get buried.
 
+## Background enrichment
+
+`/userupdates` returns `null` for `episodes_seen` / `chapters_read` whenever the total is unknown (Jikan's HTML scraper bails on the `"X/?"` format). After the initial render is on screen, an isolated module (`enrichInBackground` and friends, bottom of `widget.js`) fetches `/users/{user}/animelist` and `/mangalist` — only when there are gaps — and patches the affected rows in place via `data-mal-id` lookup. The visual experience is never blocked; enrichment failures stay in the console.
+
 ## Reliability
 
 `fetchWithRetry` retries on 429 / 5xx with exponential backoff (3 attempts, 300ms / 600ms / 1.2s). Jikan occasionally 500s when MAL throttles its scraper; the second attempt almost always succeeds.
