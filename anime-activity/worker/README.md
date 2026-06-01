@@ -1,24 +1,22 @@
 # anime-activity-widget worker
 
-Cloudflare Worker for the anime-activity widget. Proxies the official MAL API.
+Cloudflare Worker for the anime-activity widget. Proxies MAL's official API using read-only client-ID auth — no tokens, no expiry, no refresh logic.
 
 ## Deploy
 
 ```bash
 cd anime-activity/worker
-wrangler secret put MAL_ACCESS_TOKEN
+wrangler secret put MAL_CLIENT_ID
 wrangler deploy
 ```
 
-## Token
+For local dev, set `MAL_CLIENT_ID` in `.dev.vars` (gitignored).
 
-`MAL_ACCESS_TOKEN` is a MAL OAuth access token with `read` scope. Easiest sources:
-- Grab the current one from any other MAL-authenticated app you already run.
-- Or do the one-time auth-code flow (see https://myanimelist.net/apiconfig/references/authorization).
+## Why no OAuth?
 
-MAL access tokens expire every ~30 days. When the widget starts returning errors, regenerate the token and re-run `wrangler secret put MAL_ACCESS_TOKEN`. No refresh-token logic lives in the worker by design.
+The worker calls `/v2/users/{username}/animelist` (by name, not `@me`) with only the `X-MAL-CLIENT-ID` header. MAL accepts this for public read access — the target profile just has to be public. The client ID never expires.
 
-For local dev, set `MAL_ACCESS_TOKEN` in `.dev.vars` (gitignored).
+If MAL ever tightens this and starts requiring Bearer auth on this endpoint, the worker will start 401-ing and we'd switch to the refresh-token flow.
 
 ## Endpoint
 

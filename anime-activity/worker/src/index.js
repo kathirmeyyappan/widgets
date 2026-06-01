@@ -1,3 +1,4 @@
+const USERNAME = "Uji_Gintoki_Bowl";
 const ANIME_FIELDS = "list_status{status,score,num_episodes_watched,updated_at},num_episodes,main_picture";
 const MANGA_FIELDS = "list_status{status,score,num_chapters_read,updated_at},num_chapters,main_picture";
 const ALLOWED_ORIGINS = new Set(["https://kathirm.com"]);
@@ -35,10 +36,12 @@ function json(data, origin, status = 200) {
   });
 }
 
-async function fetchList(token, kind, fetchLimit) {
+async function fetchList(clientId, kind, fetchLimit) {
   const fields = kind === "anime" ? ANIME_FIELDS : MANGA_FIELDS;
-  const url = `https://api.myanimelist.net/v2/users/@me/${kind}list?fields=${fields}&sort=list_updated_at&limit=${fetchLimit}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  // Address the user by name (not @me) so MAL accepts X-MAL-Client-ID without
+  // an OAuth Bearer token. Requires the target profile to be public.
+  const url = `https://api.myanimelist.net/v2/users/${USERNAME}/${kind}list?fields=${fields}&sort=list_updated_at&limit=${fetchLimit}`;
+  const res = await fetch(url, { headers: { "X-MAL-CLIENT-ID": clientId } });
   if (!res.ok) throw new Error(`MAL ${kind}list ${res.status}: ${await res.text()}`);
   return res.json();
 }
@@ -78,8 +81,8 @@ export default {
 
     try {
       const [animeRes, mangaRes] = await Promise.all([
-        fetchList(env.MAL_ACCESS_TOKEN, "anime", limit + FETCH_BUFFER),
-        fetchList(env.MAL_ACCESS_TOKEN, "manga", limit + FETCH_BUFFER),
+        fetchList(env.MAL_CLIENT_ID, "anime", limit + FETCH_BUFFER),
+        fetchList(env.MAL_CLIENT_ID, "manga", limit + FETCH_BUFFER),
       ]);
       return json({
         anime: shape(animeRes, "anime", limit),

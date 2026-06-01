@@ -11,9 +11,11 @@ Cloudflare Worker (anime-activity-widget.kathirmey.workers.dev)
 
 ## Data
 
-Worker hits MAL's official endpoints in parallel:
-- `GET /v2/users/@me/animelist?fields=list_status{status,score,num_episodes_watched,updated_at},num_episodes,main_picture&sort=list_updated_at`
-- `GET /v2/users/@me/mangalist?fields=list_status{status,score,num_chapters_read,updated_at},num_chapters,main_picture&sort=list_updated_at`
+Worker hits MAL's official endpoints in parallel using **client-ID-only auth** (no OAuth Bearer token):
+- `GET /v2/users/{username}/animelist?fields=list_status{status,score,num_episodes_watched,updated_at},num_episodes,main_picture&sort=list_updated_at`
+- `GET /v2/users/{username}/mangalist?fields=list_status{status,score,num_chapters_read,updated_at},num_chapters,main_picture&sort=list_updated_at`
+
+Addressing the user by name (not `@me`) lets MAL accept just the `X-MAL-CLIENT-ID` header for read-only access to a public profile. No token expiry, no refresh logic.
 
 Filters out `plan_to_watch` / `plan_to_read`, returns `{ anime: [...], manga: [...] }` with each entry pre-shaped as `{ title, url, image, status, score, progress, total, date }`. Progress + total are always populated — the official API doesn't drop them on "X/?" entries the way Jikan does.
 
@@ -23,12 +25,12 @@ Filters out `plan_to_watch` / `plan_to_read`, returns `{ anime: [...], manga: [.
 
 ## Worker
 
-- Single secret: `MAL_ACCESS_TOKEN` (Cloudflare secret).
+- Single secret: `MAL_CLIENT_ID` (Cloudflare secret). Never expires.
 - Parallel fetch of animelist + mangalist with `sort=list_updated_at`, filter plan-to-watch/read, shape the response.
-- No OAuth refresh logic — MAL access tokens last ~30 days; when the worker starts 401-ing, regenerate the token and re-run `wrangler secret put MAL_ACCESS_TOKEN`.
 - Same CORS pattern as the Spotify worker (`https://kathirm.com` + `127.0.0.1` for local).
+- No OAuth, no tokens, no refresh. If MAL ever tightens this endpoint to require Bearer auth, we'd add the refresh-token flow then.
 
-See `worker/README.md` for deploy + token setup.
+See `worker/README.md` for deploy + setup.
 
 ## Files
 
