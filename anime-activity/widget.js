@@ -122,6 +122,8 @@ async function load() {
 		const res = await fetchWithRetry(ENDPOINT);
 		const json = await res.json();
 
+		console.log('[anime-activity] raw Jikan response', json.data);
+
 		// /userupdates returns at most 3 anime + 3 manga (MAL profile-page cap).
 		// Process each medium independently — no merging — so an abandoned medium
 		// still gets its own section and doesn't get buried under the other.
