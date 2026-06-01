@@ -1,4 +1,4 @@
-// Worker proxies the official MAL API and returns already-shaped data.
+// Worker returns a single merged-and-sorted list of recent updates.
 const ENDPOINT = 'https://anime-activity-widget.kathirmey.workers.dev';
 const LIMIT = 10;
 
@@ -73,25 +73,17 @@ async function load() {
 	try {
 		const res = await fetch(`${ENDPOINT}?limit=${LIMIT}`);
 		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		const { anime = [], manga = [], error } = await res.json();
+		const { entries = [], error } = await res.json();
 		if (error) throw new Error(error);
 
-		// Tag each entry with its medium + unit, merge, sort by date desc, take top LIMIT.
-		const merged = [
-			...anime.map(e => ({ ...e, type: 'anime', unit: 'ep' })),
-			...manga.map(e => ({ ...e, type: 'manga', unit: 'ch' })),
-		]
-			.sort((a, b) => new Date(b.date) - new Date(a.date))
-			.slice(0, LIMIT);
+		console.log(`[anime-activity] ${entries.length} entries`, entries);
 
-		console.log(`[anime-activity] ${anime.length} anime + ${manga.length} manga -> top ${merged.length}`, merged);
-
-		if (merged.length === 0) {
+		if (entries.length === 0) {
 			card.dataset.state = 'empty';
 			messageEl.textContent = 'No recent activity.';
 			return;
 		}
-		entriesEl.replaceChildren(...merged.map(renderEntry));
+		entriesEl.replaceChildren(...entries.map(renderEntry));
 		card.dataset.state = 'ready';
 	} catch (err) {
 		console.error('[anime-activity] failed to load', err);

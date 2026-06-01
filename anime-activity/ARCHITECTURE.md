@@ -17,16 +17,16 @@ Worker hits MAL's official endpoints in parallel using **client-ID-only auth**:
 
 Addressing the user by name (not `@me`) lets MAL accept just the `X-MAL-CLIENT-ID` header for read-only access to a public profile. No token expiry, no refresh logic.
 
-Filters out `plan_to_watch` / `plan_to_read`, returns `{ anime: [...], manga: [...] }` with each entry pre-shaped as `{ title, url, image, status, score, progress, total, date }`.
+Filters out `plan_to_watch` / `plan_to_read`, merges anime + manga, sorts by `date` desc, slices to `limit`, and returns a single `{ entries: [...] }` array. Each entry is pre-shaped as `{ type, unit, title, url, image, status, score, progress, total, date }`.
 
 ## Flow
 
-`widget.js`: `GET worker?limit=LIMIT` → tag each entry with its medium (`type` + `unit`), merge anime + manga, sort by date desc, take top `LIMIT`, render as a single mixed list with type badges per row.
+`widget.js`: `GET worker?limit=LIMIT` → render `entries` as a single mixed list with type badges per row. No client-side filter, sort, or merge — the worker did all that.
 
 ## Worker
 
 - Single secret: `MAL_CLIENT_ID` (Cloudflare secret). Never expires.
-- Parallel fetch of animelist + mangalist with `sort=list_updated_at`, filter plan-to-watch/read, shape the response.
+- Parallel fetch of animelist + mangalist, filter plan-to-watch/read, merge, sort by `date` desc, slice to `limit`. Returns one flat array.
 - Same CORS pattern as the Spotify worker (`https://kathirm.com` + `127.0.0.1` for local).
 - No OAuth, no tokens, no refresh. If MAL ever tightens this endpoint to require Bearer auth, we'd add the refresh-token flow then.
 
