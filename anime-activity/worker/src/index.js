@@ -81,6 +81,7 @@ export default {
         fetchMedium(env.MAL_CLIENT_ID, "anime", limit),
         fetchMedium(env.MAL_CLIENT_ID, "manga", limit),
       ]);
+      // Merge, sort, and trim to get animanga log to pass to frontend
       const entries = [...anime, ...manga]
         .sort((a, b) => new Date(b.date) - new Date(a.date))
         .slice(0, limit);
