@@ -12,7 +12,6 @@ const RETRY_BASE_MS = 600;
 const SKIP_STATUSES = new Set(['Plan to Watch', 'Plan to Read']);
 
 const card = document.getElementById('card');
-const entriesEl = document.getElementById('entries');
 const messageEl = document.getElementById('message');
 
 const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
@@ -57,23 +56,13 @@ function renderEntry(e) {
 	const meta = document.createElement('div');
 	meta.className = 'entry-meta';
 
-	const titleRow = document.createElement('div');
-	titleRow.className = 'title-row';
-
 	const title = document.createElement('a');
 	title.className = 'entry-title';
 	title.href = e.url;
 	title.target = '_blank';
 	title.rel = 'noopener';
 	title.textContent = e.title;
-	titleRow.appendChild(title);
-
-	const badge = document.createElement('span');
-	badge.className = `type-badge ${e.type}`;
-	badge.textContent = e.type;
-	titleRow.appendChild(badge);
-
-	meta.appendChild(titleRow);
+	meta.appendChild(title);
 
 	const detail = document.createElement('div');
 	detail.className = 'entry-detail';
@@ -90,6 +79,18 @@ function renderEntry(e) {
 	li.appendChild(ts);
 
 	return li;
+}
+
+function renderSection(medium, entries) {
+	const listEl = document.querySelector(`.entries[data-medium="${medium}"]`);
+	const emptyEl = document.querySelector(`.empty-hint[data-medium="${medium}"]`);
+	if (entries.length === 0) {
+		listEl.replaceChildren();
+		emptyEl.classList.add('visible');
+	} else {
+		listEl.replaceChildren(...entries.map(renderEntry));
+		emptyEl.classList.remove('visible');
+	}
 }
 
 async function fetchWithRetry(url) {
@@ -122,25 +123,23 @@ async function load() {
 		const json = await res.json();
 
 		// /userupdates returns at most 3 anime + 3 manga (MAL profile-page cap).
-		// Slice each to LIMIT so the spec holds for any LIMIT value: fetch up
-		// to LIMIT of each type, merge, sort by date desc, display top LIMIT.
-		const anime = (json.data?.anime ?? []).slice(0, LIMIT).map(r => normalize(r, 'anime'));
-		const manga = (json.data?.manga ?? []).slice(0, LIMIT).map(r => normalize(r, 'manga'));
-		const pool = [...anime, ...manga].filter(e => !SKIP_STATUSES.has(e.status));
-
-		console.log(`[anime-activity] fetched ${anime.length} anime + ${manga.length} manga (${pool.length} after filtering plan-to-watch/read)`, pool);
-
-		const merged = pool
+		// Process each medium independently — no merging — so an abandoned medium
+		// still gets its own section and doesn't get buried under the other.
+		const anime = (json.data?.anime ?? [])
+			.map(r => normalize(r, 'anime'))
+			.filter(e => !SKIP_STATUSES.has(e.status))
+			.sort((a, b) => new Date(b.date) - new Date(a.date))
+			.slice(0, LIMIT);
+		const manga = (json.data?.manga ?? [])
+			.map(r => normalize(r, 'manga'))
+			.filter(e => !SKIP_STATUSES.has(e.status))
 			.sort((a, b) => new Date(b.date) - new Date(a.date))
 			.slice(0, LIMIT);
 
-		if (merged.length === 0) {
-			card.dataset.state = 'empty';
-			messageEl.textContent = 'No recent activity.';
-			return;
-		}
+		console.log(`[anime-activity] fetched ${anime.length} anime + ${manga.length} manga (post-filter)`, { anime, manga });
 
-		entriesEl.replaceChildren(...merged.map(renderEntry));
+		renderSection('anime', anime);
+		renderSection('manga', manga);
 		card.dataset.state = 'ready';
 	} catch (err) {
 		console.error('[anime-activity] failed to load activity', err);
