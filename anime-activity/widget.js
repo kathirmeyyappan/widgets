@@ -1,25 +1,105 @@
+// ============================================================================
+// Config
+// ============================================================================
+
 const USERNAME = 'Uji_Gintoki_Bowl';
 const LIMIT = 3;
-const ENDPOINT = `https://api.jikan.moe/v4/users/${USERNAME}/userupdates`;
 
-// Jikan's /userupdates scrapes MAL's HTML profile page, which can fail
-// (UpstreamException 500) when MAL throttles Jikan's scraper. Retry a few
-// times with backoff before giving up.
+// Jikan v4 history endpoints. We hit anime and manga separately and merge.
+// /history scrapes MAL's history.php — more reliable than /userupdates (which
+// scrapes the profile page) and not capped at 3 per type.
+const HISTORY_URL = type => `https://api.jikan.moe/v4/users/${USERNAME}/history/${type}`;
+
+// Bounded retry with exponential backoff for transient upstream failures.
+// Jikan returns 500/UpstreamException when MAL throttles its scraper.
 const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 600;
 
-const SKIP_STATUSES = new Set(['Plan to Watch', 'Plan to Read']);
+// ============================================================================
+// DOM references
+// ============================================================================
 
 const card = document.getElementById('card');
 const entriesEl = document.getElementById('entries');
 const messageEl = document.getElementById('message');
 
+// ============================================================================
+// Fetching
+// ============================================================================
+
+// Retry on transient failures (429 + 5xx). Returns the Response on success,
+// throws on terminal failure.
+async function fetchWithRetry(url) {
+	let lastErr;
+	for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+		try {
+			const res = await fetch(url);
+			if (res.ok) return res;
+			if (!RETRY_STATUSES.has(res.status) || attempt === MAX_RETRIES) {
+				throw new Error(`HTTP ${res.status}`);
+			}
+			lastErr = new Error(`HTTP ${res.status}`);
+		} catch (err) {
+			lastErr = err;
+			if (attempt === MAX_RETRIES) throw err;
+		}
+		const delay = RETRY_BASE_MS * Math.pow(2, attempt);
+		console.warn(`[anime-activity] fetch failed (${lastErr.message}), retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+		await new Promise(r => setTimeout(r, delay));
+	}
+	throw lastErr;
+}
+
+// Fetch one type's history page and return its raw `data` array.
+async function fetchHistoryRaw(type) {
+	const res = await fetchWithRetry(HISTORY_URL(type));
+	const json = await res.json();
+	return json.data ?? [];
+}
+
+// ============================================================================
+// Data processing
+// ============================================================================
+
+// Flatten a history event into our internal shape. History events look like:
+//   { entry: { mal_id, url, title, images }, increment, date }
+function normalize(raw, type) {
+	return {
+		type,
+		malId: raw.entry?.mal_id,
+		title: raw.entry?.title ?? 'Unknown',
+		url: raw.entry?.url ?? '#',
+		image: raw.entry?.images?.jpg?.image_url ?? '',
+		increment: raw.increment,
+		unit: type === 'anime' ? 'Episode' : 'Chapter',
+		date: raw.date,
+	};
+}
+
+// Keep one event per series — the most recent one. History returns every
+// episode/chapter increment as its own entry, so a single anime can appear
+// many times; we want the latest update per series.
+function dedupeLatestPerSeries(entries) {
+	const byId = new Map();
+	for (const e of entries) {
+		if (e.malId == null) continue;
+		const existing = byId.get(e.malId);
+		if (!existing || new Date(e.date) > new Date(existing.date)) {
+			byId.set(e.malId, e);
+		}
+	}
+	return [...byId.values()];
+}
+
+// ============================================================================
+// Rendering
+// ============================================================================
+
 const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
 function relativeTime(iso) {
-	const then = new Date(iso).getTime();
-	const diffSec = Math.round((then - Date.now()) / 1000);
+	const diffSec = Math.round((new Date(iso).getTime() - Date.now()) / 1000);
 	const abs = Math.abs(diffSec);
 	if (abs < 60) return rtf.format(diffSec, 'second');
 	if (abs < 3600) return rtf.format(Math.round(diffSec / 60), 'minute');
@@ -27,22 +107,6 @@ function relativeTime(iso) {
 	if (abs < 2592000) return rtf.format(Math.round(diffSec / 86400), 'day');
 	if (abs < 31536000) return rtf.format(Math.round(diffSec / 2592000), 'month');
 	return rtf.format(Math.round(diffSec / 31536000), 'year');
-}
-
-function normalize(raw, type) {
-	const isAnime = type === 'anime';
-	return {
-		type,
-		title: raw.entry?.title ?? 'Unknown',
-		url: raw.entry?.url ?? '#',
-		image: raw.entry?.images?.jpg?.image_url ?? '',
-		status: raw.status ?? '',
-		score: raw.score,
-		progress: isAnime ? raw.episodes_seen : raw.chapters_read,
-		total: isAnime ? raw.episodes_total : raw.chapters_total,
-		unit: isAnime ? 'ep' : 'ch',
-		date: raw.date,
-	};
 }
 
 function renderEntry(e) {
@@ -77,9 +141,7 @@ function renderEntry(e) {
 
 	const detail = document.createElement('div');
 	detail.className = 'entry-detail';
-	const progressStr = `${e.progress ?? 0}/${e.total && e.total > 0 ? e.total : '?'} ${e.unit}`;
-	const scoreStr = e.score && e.score > 0 ? `Scored ${e.score}` : 'Scored –';
-	detail.innerHTML = `${e.status}<span class="sep">·</span>${progressStr}<span class="sep">·</span>${scoreStr}`;
+	detail.textContent = `${e.unit} ${e.increment ?? '?'}`;
 	meta.appendChild(detail);
 
 	li.appendChild(meta);
@@ -92,55 +154,41 @@ function renderEntry(e) {
 	return li;
 }
 
-async function fetchWithRetry(url) {
-	let lastErr;
-	for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-		try {
-			const res = await fetch(url);
-			if (res.ok) return res;
-			if (!RETRY_STATUSES.has(res.status) || attempt === MAX_RETRIES) {
-				throw new Error(`HTTP ${res.status}`);
-			}
-			lastErr = new Error(`HTTP ${res.status}`);
-		} catch (err) {
-			lastErr = err;
-			if (attempt === MAX_RETRIES) throw err;
-		}
-		const delay = RETRY_BASE_MS * Math.pow(2, attempt);
-		console.warn(`[anime-activity] fetch failed (${lastErr.message}), retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
-		await new Promise(r => setTimeout(r, delay));
-	}
-	throw lastErr;
-}
+// ============================================================================
+// Main flow
+// ============================================================================
 
 async function load() {
 	card.dataset.state = 'loading';
 	messageEl.textContent = 'Loading…';
 
 	try {
-		const res = await fetchWithRetry(ENDPOINT);
-		const json = await res.json();
+		// 1. Fetch both histories in parallel.
+		const [animeRaw, mangaRaw] = await Promise.all([
+			fetchHistoryRaw('anime'),
+			fetchHistoryRaw('manga'),
+		]);
 
-		// /userupdates returns at most 3 anime + 3 manga (MAL profile-page cap).
-		// Slice each to LIMIT so the spec holds for any LIMIT value: fetch up
-		// to LIMIT of each type, merge, sort by date desc, display top LIMIT.
-		const anime = (json.data?.anime ?? []).slice(0, LIMIT).map(r => normalize(r, 'anime'));
-		const manga = (json.data?.manga ?? []).slice(0, LIMIT).map(r => normalize(r, 'manga'));
-		const pool = [...anime, ...manga].filter(e => !SKIP_STATUSES.has(e.status));
+		// 2. Normalize, then dedupe within each type to one entry per series
+		//    (latest update wins).
+		const anime = dedupeLatestPerSeries(animeRaw.map(r => normalize(r, 'anime')));
+		const manga = dedupeLatestPerSeries(mangaRaw.map(r => normalize(r, 'manga')));
 
-		console.log(`[anime-activity] fetched ${anime.length} anime + ${manga.length} manga (${pool.length} after filtering plan-to-watch/read)`, pool);
+		// 3. Merge and sort by date desc — this is the full pool we'd consider.
+		const pool = [...anime, ...manga].sort((a, b) => new Date(b.date) - new Date(a.date));
 
-		const merged = pool
-			.sort((a, b) => new Date(b.date) - new Date(a.date))
-			.slice(0, LIMIT);
+		console.log(`[anime-activity] history: ${animeRaw.length} anime events + ${mangaRaw.length} manga events -> ${anime.length} + ${manga.length} unique series -> pool of ${pool.length}`, pool);
 
-		if (merged.length === 0) {
+		// 4. Take top LIMIT for display.
+		const top = pool.slice(0, LIMIT);
+
+		if (top.length === 0) {
 			card.dataset.state = 'empty';
 			messageEl.textContent = 'No recent activity.';
 			return;
 		}
 
-		entriesEl.replaceChildren(...merged.map(renderEntry));
+		entriesEl.replaceChildren(...top.map(renderEntry));
 		card.dataset.state = 'ready';
 	} catch (err) {
 		console.error('[anime-activity] failed to load activity', err);

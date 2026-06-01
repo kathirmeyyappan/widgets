@@ -19,16 +19,23 @@ This is deliberately simpler than the Spotify widget. MAL profile data is public
 
 **Files:** `index.html`, `widget.css`, `widget.js`
 
-**Data source:** `GET https://api.jikan.moe/v4/users/Uji_Gintoki_Bowl/userupdates`
+**Data source:** Two parallel calls to Jikan's history endpoints —
+- `GET https://api.jikan.moe/v4/users/Uji_Gintoki_Bowl/history/anime`
+- `GET https://api.jikan.moe/v4/users/Uji_Gintoki_Bowl/history/manga`
 
-Returns `{ data: { anime: [...], manga: [...] } }`. Each entry includes the MAL entry (id, url, title, cover image), the user's `status` / `score`, progress (`episodes_seen` + `episodes_total` for anime, `chapters_read` + `chapters_total` for manga), and the update `date`.
+Each returns `{ data: [{ entry: { mal_id, url, title, images }, increment, date }] }`. `increment` is the episode (anime) or chapter (manga) number that was watched/read; `date` is when the event happened. The history endpoint scrapes MAL's `history.php`, which is more reliable than scraping the profile page (what `/userupdates` does) and isn't capped at 3 per type.
 
-**Flow** (`widget.js`):
-1. Fetch the endpoint on page load (no polling — one request per visit is plenty).
-2. Normalize anime and manga entries into a unified shape, tagging each with its `type`.
-3. Drop anything whose status is `"Plan to Watch"` or `"Plan to Read"`.
-4. Sort by `date` desc, take the top 3.
-5. Render each row: cover thumbnail, title (linked to MAL), type badge, status / progress / score, relative timestamp via `Intl.RelativeTimeFormat`.
+**Flow** (`widget.js`, organized into commented sections — Config, DOM, Fetching, Data processing, Rendering, Main):
+1. Fetch both histories in parallel.
+2. Normalize each event into a flat shape (`{ type, malId, title, url, image, increment, unit, date }`).
+3. Dedupe within each type by `malId`, keeping the most recent event per series — history contains one entry per increment, so a single anime appears many times.
+4. Merge anime + manga, sort by `date` desc.
+5. Take top `LIMIT` for display; log the full pool to the console.
+6. Render each row: cover, title (linked), type badge, "Episode N" / "Chapter N", relative timestamp.
+
+**Retry:** `fetchWithRetry` retries on 429/500/502/503/504 with exponential backoff (3 attempts, 600 ms base). Jikan can return 500/`UpstreamException` when MAL throttles its scraper; usually clears on retry.
+
+**Tradeoff vs `/userupdates`:** History events don't include the user's list `status`, `score`, or `episodes_total`/`chapters_total`. The display loses "X/Y" progress and the score line in exchange for: (a) reliable endpoint not subject to MAL's profile-page block, and (b) arbitrary `LIMIT` rather than the 3-per-type cap.
 
 **Render states** (driven by `data-state` on `#card`):
 - `loading` → show "Loading…" message, hide list
