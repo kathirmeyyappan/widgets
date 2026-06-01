@@ -12,7 +12,7 @@ Static frontend that calls the [Jikan v4 API](https://docs.api.jikan.moe/) direc
 
 ## Reliability
 
-`fetchWithRetry` retries on 429 / 5xx with exponential backoff (3 attempts, 600ms / 1.2s / 2.4s). Jikan occasionally 500s when MAL throttles its scraper; the second attempt almost always succeeds.
+`fetchWithRetry` retries on 429 / 5xx with exponential backoff (3 attempts, 300ms / 600ms / 1.2s). Jikan occasionally 500s when MAL throttles its scraper; the second attempt almost always succeeds.
 
 ## Files
 

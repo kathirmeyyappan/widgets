@@ -7,7 +7,7 @@ const ENDPOINT = `https://api.jikan.moe/v4/users/${USERNAME}/userupdates`;
 // times with backoff before giving up.
 const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
 const MAX_RETRIES = 3;
-const RETRY_BASE_MS = 600;
+const RETRY_BASE_MS = 300;
 
 const SKIP_STATUSES = new Set(['Plan to Watch', 'Plan to Read']);
 
