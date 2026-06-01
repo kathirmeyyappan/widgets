@@ -2,9 +2,7 @@ const USERNAME = "Uji_Gintoki_Bowl";
 const ANIME_FIELDS = "list_status{status,score,num_episodes_watched,updated_at},num_episodes,main_picture";
 const MANGA_FIELDS = "list_status{status,score,num_chapters_read,updated_at},num_chapters,main_picture";
 const ALLOWED_ORIGINS = new Set(["https://kathirm.com"]);
-const DEFAULT_LIMIT = 3;
-// Fetch a few extra so plan-to-watch/read filtering still leaves us with LIMIT.
-const FETCH_BUFFER = 5;
+const DEFAULT_LIMIT = 10;
 
 const STATUS_LABEL = {
   watching: "Watching",
@@ -36,21 +34,13 @@ function json(data, origin, status = 200) {
   });
 }
 
-async function fetchList(clientId, kind, fetchLimit) {
-  const fields = kind === "anime" ? ANIME_FIELDS : MANGA_FIELDS;
-  // Address the user by name (not @me) so MAL accepts X-MAL-Client-ID without
-  // an OAuth Bearer token. Requires the target profile to be public.
-  const url = `https://api.myanimelist.net/v2/users/${USERNAME}/${kind}list?fields=${fields}&sort=list_updated_at&limit=${fetchLimit}`;
-  const res = await fetch(url, { headers: { "X-MAL-CLIENT-ID": clientId } });
-  if (!res.ok) throw new Error(`MAL ${kind}list ${res.status}: ${await res.text()}`);
-  return res.json();
-}
-
 function normalize(item, kind) {
   const node = item.node;
   const ls = item.list_status;
   const isAnime = kind === "anime";
   return {
+    type: kind,
+    unit: isAnime ? "ep" : "ch",
     title: node.title,
     url: `https://myanimelist.net/${kind}/${node.id}`,
     image: node.main_picture?.medium ?? node.main_picture?.large ?? "",
@@ -62,10 +52,17 @@ function normalize(item, kind) {
   };
 }
 
-function shape(payload, kind, limit) {
+// Fetch one medium's recently-updated list, filter plan-to-X, normalize.
+// Each medium contributes up to `limit` candidates so the merged top-LIMIT
+// is always correct even if all picks come from one side.
+async function fetchMedium(clientId, kind, limit) {
+  const fields = kind === "anime" ? ANIME_FIELDS : MANGA_FIELDS;
+  const url = `https://api.myanimelist.net/v2/users/${USERNAME}/${kind}list?fields=${fields}&sort=list_updated_at&limit=${limit}`;
+  const res = await fetch(url, { headers: { "X-MAL-CLIENT-ID": clientId } });
+  if (!res.ok) throw new Error(`MAL ${kind}list ${res.status}: ${await res.text()}`);
+  const payload = await res.json();
   return (payload.data ?? [])
     .filter(item => !SKIP.has(item.list_status?.status))
-    .slice(0, limit)
     .map(item => normalize(item, kind));
 }
 
@@ -80,17 +77,18 @@ export default {
     const limit = Math.max(1, Math.min(20, parseInt(params.get("limit"), 10) || DEFAULT_LIMIT));
 
     try {
-      const [animeRes, mangaRes] = await Promise.all([
-        fetchList(env.MAL_CLIENT_ID, "anime", limit + FETCH_BUFFER),
-        fetchList(env.MAL_CLIENT_ID, "manga", limit + FETCH_BUFFER),
+      const [anime, manga] = await Promise.all([
+        fetchMedium(env.MAL_CLIENT_ID, "anime", limit),
+        fetchMedium(env.MAL_CLIENT_ID, "manga", limit),
       ]);
-      return json({
-        anime: shape(animeRes, "anime", limit),
-        manga: shape(mangaRes, "manga", limit),
-      }, origin);
+      // Merge, sort, and trim to get animanga log to pass to frontend
+      const entries = [...anime, ...manga]
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, limit);
+      return json({ entries }, origin);
     } catch (e) {
       console.error(`[worker] ${e.message}`);
-      return json({ anime: [], manga: [], error: e.message }, origin, 500);
+      return json({ entries: [], error: e.message }, origin, 500);
     }
   },
 };

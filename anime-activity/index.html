@@ -9,26 +9,13 @@
 <body>
 	<div id="card" data-state="loading">
 		<div class="inner">
-			<section class="medium-section">
-				<div class="header-row">
-					<svg class="mal-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-						<path d="M3 5h18v14H3V5zm2 2v10h14V7H5zm2 2h4v6H9v-2H7V9zm6 0h4v2h-2v4h-2V9z"/>
-					</svg>
-					<div class="status-label">Recent Anime</div>
-				</div>
-				<ul class="entries" data-medium="anime"></ul>
-				<div class="empty-hint" data-medium="anime">No recent anime updates.</div>
-			</section>
-			<section class="medium-section">
-				<div class="header-row">
-					<svg class="mal-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
-						<path d="M3 5h18v14H3V5zm2 2v10h14V7H5zm2 2h4v6H9v-2H7V9zm6 0h4v2h-2v4h-2V9z"/>
-					</svg>
-					<div class="status-label">Recent Manga</div>
-				</div>
-				<ul class="entries" data-medium="manga"></ul>
-				<div class="empty-hint" data-medium="manga">No recent manga updates.</div>
-			</section>
+			<div class="header-row">
+				<svg class="mal-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true">
+					<path d="M3 5h18v14H3V5zm2 2v10h14V7H5zm2 2h4v6H9v-2H7V9zm6 0h4v2h-2v4h-2V9z"/>
+				</svg>
+				<div class="status-label">Recent Updates</div>
+			</div>
+			<ul id="entries"></ul>
 			<div id="message"></div>
 		</div>
 	</div>
