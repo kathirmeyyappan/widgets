@@ -28,6 +28,7 @@ html, body {
 	gap: 14px;
 	width: 100%;
 	max-width: 520px;
+	container-type: inline-size;
 }
 
 .header-row {
@@ -63,23 +64,25 @@ html, body {
 }
 
 #entries li {
-	display: flex;
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	grid-template-areas: "cover meta timestamp";
 	align-items: center;
 	gap: 14px;
 }
 
 .cover {
+	grid-area: cover;
 	width: 56px;
 	height: 80px;
 	border-radius: 4px;
 	object-fit: cover;
 	background: #2a2a2a;
-	flex-shrink: 0;
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .entry-meta {
-	flex: 1;
+	grid-area: meta;
 	min-width: 0;
 	display: flex;
 	flex-direction: column;
@@ -140,10 +143,24 @@ html, body {
 }
 
 .timestamp {
+	grid-area: timestamp;
 	font-size: 11px;
 	color: #777;
-	flex-shrink: 0;
 	white-space: nowrap;
+}
+
+/* Narrow embed: cover spans two rows on the left, timestamp drops under meta. */
+@container (max-width: 380px) {
+	#entries li {
+		grid-template-columns: auto 1fr;
+		grid-template-areas:
+			"cover meta"
+			"cover timestamp";
+		align-items: start;
+	}
+	.entry-title {
+		white-space: normal;
+	}
 }
 
 #message {
