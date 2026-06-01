@@ -1,15 +1,6 @@
-const USERNAME = 'Uji_Gintoki_Bowl';
+// Worker proxies the official MAL API and returns already-shaped data.
+const ENDPOINT = 'https://anime-activity-widget.kathirmey.workers.dev';
 const LIMIT = 3;
-const ENDPOINT = `https://api.jikan.moe/v4/users/${USERNAME}/userupdates`;
-
-// Jikan's /userupdates scrapes MAL's HTML profile page, which can fail
-// (UpstreamException 500) when MAL throttles Jikan's scraper. Retry a few
-// times with backoff before giving up.
-const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
-const MAX_RETRIES = 3;
-const RETRY_BASE_MS = 300;
-
-const SKIP_STATUSES = new Set(['Plan to Watch', 'Plan to Read']);
 
 const card = document.getElementById('card');
 const messageEl = document.getElementById('message');
@@ -17,8 +8,7 @@ const messageEl = document.getElementById('message');
 const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
 function relativeTime(iso) {
-	const then = new Date(iso).getTime();
-	const diffSec = Math.round((then - Date.now()) / 1000);
+	const diffSec = Math.round((new Date(iso).getTime() - Date.now()) / 1000);
 	const abs = Math.abs(diffSec);
 	if (abs < 60) return rtf.format(diffSec, 'second');
 	if (abs < 3600) return rtf.format(Math.round(diffSec / 60), 'minute');
@@ -28,23 +18,7 @@ function relativeTime(iso) {
 	return rtf.format(Math.round(diffSec / 31536000), 'year');
 }
 
-function normalize(raw, type) {
-	const isAnime = type === 'anime';
-	return {
-		type,
-		title: raw.entry?.title ?? 'Unknown',
-		url: raw.entry?.url ?? '#',
-		image: raw.entry?.images?.jpg?.image_url ?? '',
-		status: raw.status ?? '',
-		score: raw.score,
-		progress: isAnime ? raw.episodes_seen : raw.chapters_read,
-		total: isAnime ? raw.episodes_total : raw.chapters_total,
-		unit: isAnime ? 'ep' : 'ch',
-		date: raw.date,
-	};
-}
-
-function renderEntry(e) {
+function renderEntry(e, unit) {
 	const li = document.createElement('li');
 
 	const cover = document.createElement('img');
@@ -66,7 +40,7 @@ function renderEntry(e) {
 
 	const detail = document.createElement('div');
 	detail.className = 'entry-detail';
-	const progressStr = `${e.progress ?? 0}/${e.total && e.total > 0 ? e.total : '?'} ${e.unit}`;
+	const progressStr = `${e.progress ?? 0}/${e.total && e.total > 0 ? e.total : '?'} ${unit}`;
 	const scoreStr = e.score && e.score > 0 ? `Scored ${e.score}` : 'Scored –';
 	detail.innerHTML = `${e.status}<span class="sep">·</span>${progressStr}<span class="sep">·</span>${scoreStr}`;
 	meta.appendChild(detail);
@@ -81,37 +55,16 @@ function renderEntry(e) {
 	return li;
 }
 
-function renderSection(medium, entries) {
+function renderSection(medium, entries, unit) {
 	const listEl = document.querySelector(`.entries[data-medium="${medium}"]`);
 	const emptyEl = document.querySelector(`.empty-hint[data-medium="${medium}"]`);
 	if (entries.length === 0) {
 		listEl.replaceChildren();
 		emptyEl.classList.add('visible');
 	} else {
-		listEl.replaceChildren(...entries.map(renderEntry));
+		listEl.replaceChildren(...entries.map(e => renderEntry(e, unit)));
 		emptyEl.classList.remove('visible');
 	}
-}
-
-async function fetchWithRetry(url) {
-	let lastErr;
-	for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-		try {
-			const res = await fetch(url);
-			if (res.ok) return res;
-			if (!RETRY_STATUSES.has(res.status) || attempt === MAX_RETRIES) {
-				throw new Error(`HTTP ${res.status}`);
-			}
-			lastErr = new Error(`HTTP ${res.status}`);
-		} catch (err) {
-			lastErr = err;
-			if (attempt === MAX_RETRIES) throw err;
-		}
-		const delay = RETRY_BASE_MS * Math.pow(2, attempt);
-		console.warn(`[anime-activity] fetch failed (${lastErr.message}), retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
-		await new Promise(r => setTimeout(r, delay));
-	}
-	throw lastErr;
 }
 
 async function load() {
@@ -119,30 +72,18 @@ async function load() {
 	messageEl.textContent = 'Loading…';
 
 	try {
-		const res = await fetchWithRetry(ENDPOINT);
-		const json = await res.json();
+		const res = await fetch(`${ENDPOINT}?limit=${LIMIT}`);
+		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		const { anime = [], manga = [], error } = await res.json();
+		if (error) throw new Error(error);
 
-		// /userupdates returns at most 3 anime + 3 manga (MAL profile-page cap).
-		// Process each medium independently — no merging — so an abandoned medium
-		// still gets its own section and doesn't get buried under the other.
-		const anime = (json.data?.anime ?? [])
-			.map(r => normalize(r, 'anime'))
-			.filter(e => !SKIP_STATUSES.has(e.status))
-			.sort((a, b) => new Date(b.date) - new Date(a.date))
-			.slice(0, LIMIT);
-		const manga = (json.data?.manga ?? [])
-			.map(r => normalize(r, 'manga'))
-			.filter(e => !SKIP_STATUSES.has(e.status))
-			.sort((a, b) => new Date(b.date) - new Date(a.date))
-			.slice(0, LIMIT);
+		console.log(`[anime-activity] fetched ${anime.length} anime + ${manga.length} manga`, { anime, manga });
 
-		console.log(`[anime-activity] fetched ${anime.length} anime + ${manga.length} manga (post-filter)`, { anime, manga });
-
-		renderSection('anime', anime);
-		renderSection('manga', manga);
+		renderSection('anime', anime, 'ep');
+		renderSection('manga', manga, 'ch');
 		card.dataset.state = 'ready';
 	} catch (err) {
-		console.error('[anime-activity] failed to load activity', err);
+		console.error('[anime-activity] failed to load', err);
 		card.dataset.state = 'error';
 		messageEl.textContent = 'Could not load activity.';
 	}
