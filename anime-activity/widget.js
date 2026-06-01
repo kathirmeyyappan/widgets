@@ -2,6 +2,13 @@ const USERNAME = 'Uji_Gintoki_Bowl';
 const LIMIT = 3;
 const ENDPOINT = `https://api.jikan.moe/v4/users/${USERNAME}/userupdates`;
 
+// Jikan's /userupdates scrapes MAL's HTML profile page, which can fail
+// (UpstreamException 500) when MAL throttles Jikan's scraper. Retry a few
+// times with backoff before giving up.
+const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
+const MAX_RETRIES = 3;
+const RETRY_BASE_MS = 600;
+
 const SKIP_STATUSES = new Set(['Plan to Watch', 'Plan to Read']);
 
 const card = document.getElementById('card');
@@ -85,20 +92,45 @@ function renderEntry(e) {
 	return li;
 }
 
+async function fetchWithRetry(url) {
+	let lastErr;
+	for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+		try {
+			const res = await fetch(url);
+			if (res.ok) return res;
+			if (!RETRY_STATUSES.has(res.status) || attempt === MAX_RETRIES) {
+				throw new Error(`HTTP ${res.status}`);
+			}
+			lastErr = new Error(`HTTP ${res.status}`);
+		} catch (err) {
+			lastErr = err;
+			if (attempt === MAX_RETRIES) throw err;
+		}
+		const delay = RETRY_BASE_MS * Math.pow(2, attempt);
+		console.warn(`[anime-activity] fetch failed (${lastErr.message}), retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+		await new Promise(r => setTimeout(r, delay));
+	}
+	throw lastErr;
+}
+
 async function load() {
 	card.dataset.state = 'loading';
 	messageEl.textContent = 'Loading…';
 
 	try {
-		const res = await fetch(ENDPOINT);
-		if (!res.ok) throw new Error(`HTTP ${res.status}`);
+		const res = await fetchWithRetry(ENDPOINT);
 		const json = await res.json();
 
-		const anime = (json.data?.anime ?? []).map(r => normalize(r, 'anime'));
-		const manga = (json.data?.manga ?? []).map(r => normalize(r, 'manga'));
+		// /userupdates returns at most 3 anime + 3 manga (MAL profile-page cap).
+		// Slice each to LIMIT so the spec holds for any LIMIT value: fetch up
+		// to LIMIT of each type, merge, sort by date desc, display top LIMIT.
+		const anime = (json.data?.anime ?? []).slice(0, LIMIT).map(r => normalize(r, 'anime'));
+		const manga = (json.data?.manga ?? []).slice(0, LIMIT).map(r => normalize(r, 'manga'));
+		const pool = [...anime, ...manga].filter(e => !SKIP_STATUSES.has(e.status));
 
-		const merged = [...anime, ...manga]
-			.filter(e => !SKIP_STATUSES.has(e.status))
+		console.log(`[anime-activity] fetched ${anime.length} anime + ${manga.length} manga (${pool.length} after filtering plan-to-watch/read)`, pool);
+
+		const merged = pool
 			.sort((a, b) => new Date(b.date) - new Date(a.date))
 			.slice(0, LIMIT);
 
@@ -111,7 +143,7 @@ async function load() {
 		entriesEl.replaceChildren(...merged.map(renderEntry));
 		card.dataset.state = 'ready';
 	} catch (err) {
-		console.error('Failed to load activity', err);
+		console.error('[anime-activity] failed to load activity', err);
 		card.dataset.state = 'error';
 		messageEl.textContent = 'Could not load activity.';
 	}
