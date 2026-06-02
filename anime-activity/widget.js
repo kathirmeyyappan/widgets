@@ -1,6 +1,6 @@
 // Worker returns a single merged-and-sorted list of recent updates.
 const ENDPOINT = 'https://anime-activity-widget.kathirmey.workers.dev';
-const DAYS = 7;
+const DAYS = 10;
 
 const card = document.getElementById('card');
 const entriesEl = document.getElementById('entries');
