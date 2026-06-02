@@ -1,3 +1,3 @@
-name = "anime-activity-widget"
+name = "anime-activity-widget-rss"
 main = "src/index.js"
 compatibility_date = "2026-05-01"

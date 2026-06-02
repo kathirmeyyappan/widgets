@@ -1,5 +1,5 @@
 // Worker returns a single merged-and-sorted list of recent updates.
-const ENDPOINT = 'https://anime-activity-widget.kathirmey.workers.dev';
+const ENDPOINT = 'https://anime-activity-widget-rss.kathirmey.workers.dev';
 const LIMIT = 10;
 
 const card = document.getElementById('card');

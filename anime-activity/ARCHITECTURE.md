@@ -3,7 +3,7 @@
 ```
 Browser (kathirm.com/widgets/anime-activity/)
   ↕ GET ?limit=N
-Cloudflare Worker (anime-activity-widget.kathirmey.workers.dev)
+Cloudflare Worker (anime-activity-widget-rss.kathirmey.workers.dev)
   ↕ MAL profile RSS (real-time)  +  MAL public catalog API (covers)
 ```
 
