@@ -57,7 +57,7 @@ function normalize(item, kind) {
 // is always correct even if all picks come from one side.
 async function fetchMedium(clientId, kind, limit) {
   const fields = kind === "anime" ? ANIME_FIELDS : MANGA_FIELDS;
-  const url = `https://api.myanimelist.net/v2/users/${USERNAME}/${kind}list?fields=${fields}&sort=list_updated_at&limit=${limit}`;
+  const url = `https://api.myanimelist.net/v2/users/${USERNAME}/${kind}list?fields=${fields}&sort=list_updated_at&limit=${limit}&nsfw=true`;
   const res = await fetch(url, { headers: { "X-MAL-CLIENT-ID": clientId } });
   if (!res.ok) throw new Error(`MAL ${kind}list ${res.status}: ${await res.text()}`);
   const payload = await res.json();
