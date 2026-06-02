@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stock Widget</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="widget.css" />
+</head>
+<body>
+  <div class="widget" id="widget" data-state="loading">
+
+    <div class="ticker-bar">
+      <div class="ticker-track" id="tickerTrack"></div>
+    </div>
+
+    <div class="focus-panel">
+      <div class="focus-header">
+        <div class="focus-left">
+          <span class="focus-symbol" id="focusSymbol">——</span>
+          <span class="focus-name" id="focusName"></span>
+        </div>
+        <div class="focus-right">
+          <span class="focus-price" id="focusPrice">——</span>
+          <span class="focus-change" id="focusChange"></span>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <svg class="chart-svg" id="chartSvg" viewBox="0 0 600 160" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="areaUp" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#3fb950" stop-opacity="0.25"/>
+              <stop offset="100%" stop-color="#3fb950" stop-opacity="0"/>
+            </linearGradient>
+            <linearGradient id="areaDown" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#f85149" stop-opacity="0.25"/>
+              <stop offset="100%" stop-color="#f85149" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <polygon id="chartArea" class="chart-area" points="" />
+          <polyline id="chartLine" class="chart-line" points="" />
+          <circle id="chartDot" class="chart-dot" cx="-99" cy="-99" r="3.5" />
+        </svg>
+        <div class="chart-empty" id="chartEmpty">No intraday data</div>
+      </div>
+
+      <div class="focus-stats">
+        <div class="stat">
+          <span class="stat-label">Open</span>
+          <span class="stat-value" id="statOpen">——</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">High</span>
+          <span class="stat-value" id="statHigh">——</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Low</span>
+          <span class="stat-value" id="statLow">——</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Prev Close</span>
+          <span class="stat-value" id="statPrev">——</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <script type="module" src="widget.js"></script>
+</body>
+</html>
