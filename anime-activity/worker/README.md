@@ -1,6 +1,6 @@
-# anime-activity-widget worker
+# anime-activity-widget worker (RSS variant)
 
-Cloudflare Worker for the anime-activity widget. Proxies MAL's official API using read-only client-ID auth — no tokens, no expiry, no refresh logic.
+Cloudflare Worker that builds the recent-activity feed from MAL's profile RSS feeds. The MAL `/v2/users/{username}/{kind}list?sort=list_updated_at` endpoint serves data from a backend cache that can lag the live profile by minutes-to-hours; RSS is generated from the live profile page so it tracks new updates immediately.
 
 ## Deploy
 
@@ -12,12 +12,17 @@ wrangler deploy
 
 For local dev, set `MAL_CLIENT_ID` in `.dev.vars` (gitignored).
 
-## Why no OAuth?
+## Sources
 
-The worker calls `/v2/users/{username}/animelist` (by name, not `@me`) with only the `X-MAL-CLIENT-ID` header. MAL accepts this for public read access — the target profile just has to be public. The client ID never expires.
+- `https://myanimelist.net/rss.php?type=rw&u={USERNAME}` — recently watched (anime)
+- `https://myanimelist.net/rss.php?type=rm&u={USERNAME}` — recently read (manga)
 
-If MAL ever tightens this and starts requiring Bearer auth on this endpoint, the worker will start 401-ing and we'd switch to the refresh-token flow.
+RSS items carry title, link (with `mal_id`), status, progress, total, and `pubDate`. The worker parses these, merges anime + manga, filters plan-to-watch/read, sorts by date desc, slices to `limit`, then enriches each returned entry's cover image from MAL's public catalog API (`/v2/{type}/{id}?fields=main_picture`) using `X-MAL-CLIENT-ID`.
+
+## Trade-off vs the MAL list variant
+
+The RSS feed doesn't include the user's personal score, so every entry comes back with `score: null` and the frontend renders "Scored –". Everything else (title, url, image, status, progress, total, date) matches the previous shape exactly — drop-in compatible with the existing frontend.
 
 ## Endpoint
 
-`GET /?limit=N` → `{ entries: [...] }` — a single merged-and-sorted list of recent anime + manga updates. Each item is shaped as `{ type, unit, title, url, image, status, score, progress, total, date }`. `plan_to_watch` / `plan_to_read` entries are filtered out. `limit` clamps to 1–20, defaults to 10.
+`GET /?limit=N` → `{ entries: [...] }`. Each item: `{ type, unit, title, url, image, status, score, progress, total, date }`. `Plan to Watch` / `Plan to Read` filtered out. `limit` clamps 1–20, defaults to 10.
