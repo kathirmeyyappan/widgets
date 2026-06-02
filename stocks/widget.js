@@ -9,21 +9,23 @@ const PAD  = { top: 10, right: 8, bottom: 10, left: 8 };
 const $ = id => document.getElementById(id);
 
 const els = {
-  widget:      $('widget'),
-  tickerTrack: $('tickerTrack'),
-  focusSymbol: $('focusSymbol'),
-  focusName:   $('focusName'),
-  focusPrice:  $('focusPrice'),
-  focusChange: $('focusChange'),
-  chartWrap:   document.querySelector('.chart-wrap'),
-  chartArea:   $('chartArea'),
-  chartLine:   $('chartLine'),
-  chartDot:    $('chartDot'),
-  chartEmpty:  $('chartEmpty'),
-  statOpen:    $('statOpen'),
-  statHigh:    $('statHigh'),
-  statLow:     $('statLow'),
-  statPrev:    $('statPrev'),
+  widget:         $('widget'),
+  searchBar:      $('searchBar'),
+  searchInput:    $('searchInput'),
+  tickerTrack:    $('tickerTrack'),
+  focusSymbol:    $('focusSymbol'),
+  focusName:      $('focusName'),
+  focusPrice:     $('focusPrice'),
+  focusChange:    $('focusChange'),
+  chartWrap:      document.querySelector('.chart-wrap'),
+  chartArea:      $('chartArea'),
+  chartLine:      $('chartLine'),
+  chartDot:       $('chartDot'),
+  chartEmpty:     $('chartEmpty'),
+  statOpen:       $('statOpen'),
+  statHigh:       $('statHigh'),
+  statLow:        $('statLow'),
+  statPrev:       $('statPrev'),
 };
 
 const params      = new URLSearchParams(location.search);
@@ -128,6 +130,54 @@ function renderChart(points, isUp) {
   els.chartDot.setAttribute('cy', toY(last.price));
   els.chartDot.className = `chart-dot${isUp ? '' : ' down'}`;
 }
+
+// ── Search ────────────────────────────────────────────────
+
+let searchErrorTimer = null;
+
+function showSearchError() {
+  clearTimeout(searchErrorTimer);
+  els.searchBar.dataset.state = 'error';
+  searchErrorTimer = setTimeout(() => {
+    delete els.searchBar.dataset.state;
+  }, 1800);
+}
+
+async function commitSearch() {
+  const raw = els.searchInput.value.trim().toUpperCase();
+  els.searchInput.value = '';
+  if (!raw) return;
+  if (raw === focusTicker) return;
+
+  // Optimistically switch; fetch quote + chart for the new ticker
+  try {
+    const res = await fetch(`${WORKER_URL}/quotes?tickers=${raw}`);
+    if (!res.ok) { showSearchError(); return; }
+    const quotes = await res.json();
+    if (!quotes.length || quotes[0].price == null) { showSearchError(); return; }
+
+    quotes.forEach(q => { quotesCache[q.symbol] = q; });
+    focusTicker = raw;
+    markActiveInBar(raw);
+    renderFocus(quotesCache[raw]);
+    els.chartWrap.classList.add('empty');
+    await fetchChart();
+  } catch {
+    showSearchError();
+  }
+}
+
+els.searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); commitSearch(); }
+  if (e.key === 'Escape') { els.searchInput.value = ''; els.searchInput.blur(); }
+});
+
+// Force uppercase as user types
+els.searchInput.addEventListener('input', () => {
+  const sel = els.searchInput.selectionStart;
+  els.searchInput.value = els.searchInput.value.toUpperCase();
+  els.searchInput.setSelectionRange(sel, sel);
+});
 
 // ── Data fetching ─────────────────────────────────────────
 

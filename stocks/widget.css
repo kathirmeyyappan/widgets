@@ -19,6 +19,81 @@ body {
   color: #e6edf3;
 }
 
+/* ── Search bar ─────────────────────────────────────────── */
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 38px;
+  background: #161b22;
+  border-bottom: 1px solid #21262d;
+  transition: border-color 0.15s;
+}
+
+.search-bar:focus-within {
+  border-color: #388bfd;
+}
+
+.search-bar[data-state="error"] {
+  border-color: #f85149;
+  animation: search-shake 0.35s ease;
+}
+
+@keyframes search-shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-4px); }
+  60%       { transform: translateX(4px); }
+  80%       { transform: translateX(-2px); }
+}
+
+.search-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.search-bar:focus-within .search-icon circle,
+.search-bar:focus-within .search-icon line {
+  stroke: #8b949e;
+}
+
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: #e6edf3;
+  caret-color: #388bfd;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.search-input::placeholder {
+  color: #484f58;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
+
+.search-error-msg {
+  font-size: 11px;
+  color: #f85149;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+.search-bar[data-state="error"] .search-error-msg {
+  opacity: 1;
+}
+
 /* ── Ticker bar ─────────────────────────────────────────── */
 
 .ticker-bar {
