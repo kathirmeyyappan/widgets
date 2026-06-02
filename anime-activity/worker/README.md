@@ -20,4 +20,4 @@ If MAL ever tightens this and starts requiring Bearer auth on this endpoint, the
 
 ## Endpoint
 
-`GET /?limit=N` → `{ entries: [...] }` — a single merged-and-sorted list of recent anime + manga updates. Each item is shaped as `{ type, unit, title, url, image, status, score, progress, total, date }`. `plan_to_watch` / `plan_to_read` entries are filtered out. `limit` clamps to 1–20, defaults to 10.
+`GET /?days=N` → `{ entries: [...] }` — every anime + manga update from the last N days, merged and sorted by date desc. Each item: `{ type, unit, title, url, image, status, score, progress, total, date }`. `plan_to_watch` / `plan_to_read` entries are filtered out. `days` clamps to 1–90, defaults to 7.

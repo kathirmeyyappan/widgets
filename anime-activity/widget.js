@@ -1,6 +1,6 @@
 // Worker returns a single merged-and-sorted list of recent updates.
 const ENDPOINT = 'https://anime-activity-widget.kathirmey.workers.dev';
-const LIMIT = 10;
+const DAYS = 7;
 
 const card = document.getElementById('card');
 const entriesEl = document.getElementById('entries');
@@ -71,7 +71,7 @@ async function load() {
 	messageEl.textContent = 'Loading…';
 
 	try {
-		const res = await fetch(`${ENDPOINT}?limit=${LIMIT}`);
+		const res = await fetch(`${ENDPOINT}?days=${DAYS}`);
 		if (!res.ok) throw new Error(`HTTP ${res.status}`);
 		const { entries = [], error } = await res.json();
 		if (error) throw new Error(error);
