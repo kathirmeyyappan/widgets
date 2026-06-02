@@ -2,7 +2,7 @@
 
 ```
 Browser (kathirm.com/widgets/anime-activity/)
-  ↕ GET ?limit=N
+  ↕ GET ?days=N
 Cloudflare Worker (anime-activity-widget.kathirmey.workers.dev)
   ↕ X-MAL-Client-ID (read-only, no OAuth)
 MAL API v2
@@ -12,10 +12,10 @@ The worker addresses the user by name (not `@me`), which lets MAL accept just th
 
 ## Worker
 
-Hits `/v2/users/{username}/animelist` + `/mangalist` in parallel, filters `plan_to_watch` / `plan_to_read`, merges, sorts by `updated_at` desc, slices to `limit`, returns `{ entries: [...] }`. Each entry: `{ type, unit, title, url, image, status, score, progress, total, date }`.
+Hits `/v2/users/{username}/animelist` + `/mangalist` in parallel (each capped at 100 most-recently-updated entries, `nsfw=true` to include R+/Rx), filters `plan_to_watch` / `plan_to_read`, merges, drops anything older than the requested window, sorts by `updated_at` desc, returns `{ entries: [...] }`. Each entry: `{ type, unit, title, url, image, status, score, progress, total, date }`.
 
 - Single secret: `MAL_CLIENT_ID` (Cloudflare). Never expires.
-- `?limit=N` clamps 1–20, defaults to 10.
+- `?days=N` clamps 1–90, defaults to 7.
 - Same CORS pattern as the Spotify worker.
 
 Setup in `worker/README.md`.
