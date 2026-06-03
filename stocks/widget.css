@@ -304,6 +304,61 @@ body {
 
 .chart-wrap.empty .chart-axis { opacity: 0.15; }
 
+/* ── Hover crosshair + tooltip ──────────────────────────── */
+
+.hover-line {
+  stroke: #6e7681;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+  opacity: 0;
+}
+
+.hover-dot {
+  fill: #e6edf3;
+  stroke: #0d1117;
+  stroke-width: 1.5;
+  opacity: 0;
+}
+
+.chart-wrap.hovering .hover-line,
+.chart-wrap.hovering .hover-dot {
+  opacity: 1;
+}
+
+.hover-tip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, calc(-100% - 10px));
+  background: #1c2128;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s;
+  z-index: 5;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-wrap.hovering .hover-tip {
+  opacity: 1;
+}
+
+.hover-tip .tip-price {
+  font-weight: 600;
+  color: #e6edf3;
+}
+
+.hover-tip .tip-time {
+  font-size: 9px;
+  color: #8b949e;
+}
+
 .chart-area {
   fill: url(#areaUp);
 }
