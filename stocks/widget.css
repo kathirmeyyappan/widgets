@@ -4,9 +4,17 @@
   padding: 0;
 }
 
+html, body {
+  height: 100%;
+}
+
 body {
-  background: transparent;
+  background: #0d1117;
   font-family: 'Inter', system-ui, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
 }
 
 .widget {
