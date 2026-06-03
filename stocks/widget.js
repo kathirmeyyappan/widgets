@@ -22,14 +22,18 @@ const els = {
   chartLine:      $('chartLine'),
   chartDot:       $('chartDot'),
   chartEmpty:     $('chartEmpty'),
+  rangeSelector:  $('rangeSelector'),
   statOpen:       $('statOpen'),
   statHigh:       $('statHigh'),
   statLow:        $('statLow'),
   statPrev:       $('statPrev'),
 };
 
+const RANGES = ['1H', '1D', '1W', '1M', '1Y', '5Y', 'ALL'];
+
 const params      = new URLSearchParams(location.search);
 let focusTicker   = (params.get('ticker') || 'AAPL').toUpperCase();
+let currentRange  = '1D';
 let quotesCache   = {};
 
 function fmt(n) {
@@ -131,6 +135,24 @@ function renderChart(points, isUp) {
   els.chartDot.className = `chart-dot${isUp ? '' : ' down'}`;
 }
 
+// ── Range selector ───────────────────────────────────────
+
+function markActiveRange(range) {
+  els.rangeSelector.querySelectorAll('.range-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.range === range);
+  });
+}
+
+els.rangeSelector.querySelectorAll('.range-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if (btn.dataset.range === currentRange) return;
+    currentRange = btn.dataset.range;
+    markActiveRange(currentRange);
+    els.chartWrap.classList.add('empty');
+    await fetchChart();
+  });
+});
+
 // ── Search ────────────────────────────────────────────────
 
 let searchErrorTimer = null;
@@ -199,13 +221,21 @@ async function fetchQuotes() {
 
 async function fetchChart() {
   try {
-    const res = await fetch(`${WORKER_URL}/chart?ticker=${focusTicker}`);
+    const res = await fetch(`${WORKER_URL}/chart?ticker=${focusTicker}&range=${currentRange}`);
     if (!res.ok) return;
-    const data = await res.json();
+    const data   = await res.json();
+    const points = data.points || [];
 
-    const q    = quotesCache[focusTicker];
-    const isUp = q ? q.change >= 0 : true;
-    renderChart(data.points || [], isUp);
+    // For intraday ranges use daily quote change; for multi-day use first→last
+    let isUp;
+    if (currentRange === '1H' || currentRange === '1D') {
+      const q = quotesCache[focusTicker];
+      isUp = q ? q.change >= 0 : points.length >= 2 && points[points.length - 1].price >= points[0].price;
+    } else {
+      isUp = points.length < 2 || points[points.length - 1].price >= points[0].price;
+    }
+
+    renderChart(points, isUp);
   } catch (e) {
     console.error('chart fetch failed', e);
   }
@@ -222,6 +252,7 @@ async function switchFocus(symbol) {
 
 // ── Init + polling ────────────────────────────────────────
 
+markActiveRange(currentRange);
 fetchQuotes();
 fetchChart();
 

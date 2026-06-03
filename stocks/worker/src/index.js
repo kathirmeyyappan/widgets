@@ -56,8 +56,19 @@ async function yfQuote(ticker) {
   };
 }
 
-async function yfChart(ticker) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=5m&range=1d`;
+// range key -> { yfRange, interval, ttl, filterMs? }
+const RANGE_CFG = {
+  '1H':  { yfRange: '1d',  interval: '1m',  ttl:          30_000, filterMs: 60 * 60 * 1000 },
+  '1D':  { yfRange: '1d',  interval: '5m',  ttl:          60_000 },
+  '1W':  { yfRange: '5d',  interval: '30m', ttl:     2 * 60_000 },
+  '1M':  { yfRange: '1mo', interval: '1d',  ttl:     5 * 60_000 },
+  '1Y':  { yfRange: '1y',  interval: '1wk', ttl:    10 * 60_000 },
+  '5Y':  { yfRange: '5y',  interval: '1mo', ttl:    30 * 60_000 },
+  'ALL': { yfRange: 'max', interval: '3mo', ttl: 60 * 60_000 },
+};
+
+async function yfChart(ticker, cfg) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=${cfg.interval}&range=${cfg.yfRange}`;
   const res  = await fetch(url, { headers: YF_HEADERS });
   if (!res.ok) throw new Error(`Yahoo chart ${ticker}: ${res.status}`);
 
@@ -68,9 +79,15 @@ async function yfChart(ticker) {
   const timestamps = result.timestamp ?? [];
   const closes     = result.indicators.quote[0].close ?? [];
 
-  const points = timestamps
+  let points = timestamps
     .map((ts, i) => ({ ts: ts * 1000, price: closes[i] }))
     .filter(p => p.price != null);
+
+  // For 1H, keep only the last 60 minutes of data
+  if (cfg.filterMs && points.length) {
+    const cutoff = points[points.length - 1].ts - cfg.filterMs;
+    points = points.filter(p => p.ts >= cutoff);
+  }
 
   return { ticker, points };
 }
@@ -78,9 +95,8 @@ async function yfChart(ticker) {
 // ── In-memory cache ───────────────────────────────────────
 
 const quoteCache = new Map(); // symbol -> { data, exp }
-const chartCache = new Map();
-const QUOTE_TTL  = 30_000;   // 30 s
-const CHART_TTL  = 120_000;  // 2 min
+const chartCache = new Map(); // `${symbol}:${range}` -> { data, exp }
+const QUOTE_TTL  = 30_000;
 
 async function cachedQuote(ticker, now) {
   const hit = quoteCache.get(ticker);
@@ -90,11 +106,13 @@ async function cachedQuote(ticker, now) {
   return data;
 }
 
-async function cachedChart(ticker, now) {
-  const hit = chartCache.get(ticker);
+async function cachedChart(ticker, rangeKey, now) {
+  const cfg = RANGE_CFG[rangeKey] ?? RANGE_CFG['1D'];
+  const key = `${ticker}:${rangeKey}`;
+  const hit = chartCache.get(key);
   if (hit && hit.exp > now) return hit.data;
-  const data = await yfChart(ticker);
-  chartCache.set(ticker, { data, exp: now + CHART_TTL });
+  const data = await yfChart(ticker, cfg);
+  chartCache.set(key, { data, exp: now + cfg.ttl });
   return data;
 }
 
@@ -126,10 +144,11 @@ export default {
         return json(quotes, cors);
       }
 
-      // GET /chart?ticker=AAPL
+      // GET /chart?ticker=AAPL&range=1D
       if (url.pathname === '/chart') {
-        const ticker = (url.searchParams.get('ticker') ?? 'AAPL').toUpperCase();
-        const data   = await cachedChart(ticker, now);
+        const ticker   = (url.searchParams.get('ticker') ?? 'AAPL').toUpperCase();
+        const rangeKey = (url.searchParams.get('range') ?? '1D').toUpperCase();
+        const data     = await cachedChart(ticker, rangeKey, now);
         return json(data, cors);
       }
 
