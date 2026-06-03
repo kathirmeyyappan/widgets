@@ -1,6 +1,6 @@
 const WORKER_URL = 'https://stocks-widget.kathirmey.workers.dev';
 
-const BAR_TICKERS = ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN', 'NVDA', 'META', 'SPY', 'QQQ', 'BRK-B'];
+const BAR_TICKERS = ['GOOGL', 'IVV', 'FIG', 'NET'];
 
 const SVG_W = 600;
 const SVG_H = 160;
