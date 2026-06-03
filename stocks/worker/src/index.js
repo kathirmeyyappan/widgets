@@ -1,7 +1,15 @@
-const ALLOWED_ORIGINS = ['https://kathirm.com', 'http://127.0.0.1:5500', 'http://localhost:5500'];
+const PROD_ORIGIN = 'https://kathirm.com';
+
+function isAllowedOrigin(origin) {
+  if (origin === PROD_ORIGIN) return true;
+  try {
+    const u = new URL(origin);
+    return u.hostname === '127.0.0.1' || u.hostname === 'localhost';
+  } catch { return false; }
+}
 
 function corsHeaders(origin) {
-  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  const allowed = isAllowedOrigin(origin) ? origin : PROD_ORIGIN;
   return {
     'Access-Control-Allow-Origin': allowed,
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
