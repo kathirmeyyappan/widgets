@@ -21,6 +21,8 @@ const els = {
   chartArea:      $('chartArea'),
   chartLine:      $('chartLine'),
   chartDot:       $('chartDot'),
+  chartGrid:      $('chartGrid'),
+  chartAxis:      $('chartAxis'),
   chartEmpty:     $('chartEmpty'),
   rangeSelector:  $('rangeSelector'),
   statOpen:       $('statOpen'),
@@ -102,9 +104,46 @@ function renderFocus(q) {
 
 // ── Chart ────────────────────────────────────────────────
 
+// Rounded "nice" tick values spanning [min, max]
+function niceTicks(min, max, target = 4) {
+  const span    = max - min || 1;
+  const rawStep = span / target;
+  const mag     = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const norm    = rawStep / mag;
+  const step    = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+
+  const ticks = [];
+  for (let v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step) ticks.push(v);
+  return ticks;
+}
+
+function renderAxis(ticks, toY) {
+  els.chartGrid.innerHTML = '';
+  els.chartAxis.innerHTML = '';
+
+  ticks.forEach(price => {
+    const y = toY(price);
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', PAD.left);
+    line.setAttribute('x2', SVG_W - PAD.right);
+    line.setAttribute('y1', y);
+    line.setAttribute('y2', y);
+    els.chartGrid.appendChild(line);
+
+    const label = document.createElement('div');
+    label.className   = 'axis-label';
+    label.style.top   = `${(y / SVG_H) * 100}%`;
+    label.textContent = price.toFixed(2);
+    els.chartAxis.appendChild(label);
+  });
+}
+
 function renderChart(points, isUp) {
   if (!points || points.length < 2) {
     els.chartWrap.classList.add('empty');
+    els.chartGrid.innerHTML = '';
+    els.chartAxis.innerHTML = '';
     return;
   }
   els.chartWrap.classList.remove('empty');
@@ -116,6 +155,8 @@ function renderChart(points, isUp) {
 
   const toX = i => PAD.left + (i / (points.length - 1)) * (SVG_W - PAD.left - PAD.right);
   const toY = p => PAD.top  + (1 - (p - minP) / range)  * (SVG_H - PAD.top  - PAD.bottom);
+
+  renderAxis(niceTicks(minP, maxP), toY);
 
   const linePts = points.map((p, i) => `${toX(i)},${toY(p.price)}`).join(' ');
   els.chartLine.setAttribute('points', linePts);
