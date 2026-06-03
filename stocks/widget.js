@@ -18,11 +18,15 @@ const els = {
   focusPrice:     $('focusPrice'),
   focusChange:    $('focusChange'),
   chartWrap:      document.querySelector('.chart-wrap'),
+  chartSvg:       $('chartSvg'),
   chartArea:      $('chartArea'),
   chartLine:      $('chartLine'),
   chartDot:       $('chartDot'),
   chartGrid:      $('chartGrid'),
   chartAxis:      $('chartAxis'),
+  hoverLine:      $('hoverLine'),
+  hoverDot:       $('hoverDot'),
+  hoverTip:       $('hoverTip'),
   chartEmpty:     $('chartEmpty'),
   rangeSelector:  $('rangeSelector'),
   statOpen:       $('statOpen'),
@@ -37,6 +41,7 @@ const params      = new URLSearchParams(location.search);
 let focusTicker   = (params.get('ticker') || 'AAPL').toUpperCase();
 let currentRange  = '1D';
 let quotesCache   = {};
+let chartState    = null;  // { points, toX, toY } for hover lookups
 
 function fmt(n) {
   return n != null ? n.toFixed(2) : '——';
@@ -142,8 +147,10 @@ function renderAxis(ticks, toY) {
 function renderChart(points, isUp) {
   if (!points || points.length < 2) {
     els.chartWrap.classList.add('empty');
+    els.chartWrap.classList.remove('hovering');
     els.chartGrid.innerHTML = '';
     els.chartAxis.innerHTML = '';
+    chartState = null;
     return;
   }
   els.chartWrap.classList.remove('empty');
@@ -155,6 +162,8 @@ function renderChart(points, isUp) {
 
   const toX = i => PAD.left + (i / (points.length - 1)) * (SVG_W - PAD.left - PAD.right);
   const toY = p => PAD.top  + (1 - (p - minP) / range)  * (SVG_H - PAD.top  - PAD.bottom);
+
+  chartState = { points, toX, toY };
 
   renderAxis(niceTicks(minP, maxP), toY);
 
@@ -175,6 +184,53 @@ function renderChart(points, isUp) {
   els.chartDot.setAttribute('cy', toY(last.price));
   els.chartDot.className = `chart-dot${isUp ? '' : ' down'}`;
 }
+
+// ── Chart hover ──────────────────────────────────────────
+
+function fmtHoverTime(ts) {
+  const d = new Date(ts);
+  return (currentRange === '1H' || currentRange === '1D')
+    ? d.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : d.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function onChartMove(e) {
+  const st = chartState;
+  if (!st) return;
+
+  const rect = els.chartSvg.getBoundingClientRect();
+  const frac = (e.clientX - rect.left) / rect.width;
+  const vbX  = Math.max(0, Math.min(SVG_W, frac * SVG_W));
+
+  const span = SVG_W - PAD.left - PAD.right;
+  let i = Math.round(((vbX - PAD.left) / span) * (st.points.length - 1));
+  i = Math.max(0, Math.min(st.points.length - 1, i));
+
+  const p = st.points[i];
+  const x = st.toX(i);
+  const y = st.toY(p.price);
+
+  els.hoverLine.setAttribute('x1', x);
+  els.hoverLine.setAttribute('x2', x);
+  els.hoverDot.setAttribute('cx', x);
+  els.hoverDot.setAttribute('cy', y);
+
+  // Tooltip in px relative to chart-wrap; clamp so it stays in view
+  const leftPx = Math.max(34, Math.min(rect.width - 34, (x / SVG_W) * rect.width));
+  els.hoverTip.style.left  = `${leftPx}px`;
+  els.hoverTip.style.top   = `${(y / SVG_H) * rect.height}px`;
+  els.hoverTip.innerHTML   =
+    `<div class="tip-price">$${fmt(p.price)}</div><div class="tip-time">${fmtHoverTime(p.ts)}</div>`;
+
+  els.chartWrap.classList.add('hovering');
+}
+
+function onChartLeave() {
+  els.chartWrap.classList.remove('hovering');
+}
+
+els.chartWrap.addEventListener('mousemove', onChartMove);
+els.chartWrap.addEventListener('mouseleave', onChartLeave);
 
 // ── Range selector ───────────────────────────────────────
 
@@ -296,9 +352,6 @@ async function switchFocus(symbol) {
 markActiveRange(currentRange);
 fetchQuotes();
 fetchChart();
-
-setInterval(fetchQuotes, 30_000);
-setInterval(fetchChart,  120_000);
 
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) { fetchQuotes(); fetchChart(); }
