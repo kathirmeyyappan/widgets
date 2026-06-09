@@ -1,7 +1,7 @@
 const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
 const SPOTIFY_NOW_PLAYING_URL = "https://api.spotify.com/v1/me/player/currently-playing";
 const SPOTIFY_RECENTLY_PLAYED_URL = "https://api.spotify.com/v1/me/player/recently-played?limit=1";
-const ALLOWED_ORIGINS = new Set(["https://kathirm.com"]);
+const ALLOWED_ORIGINS = new Set(["https://widgets.kathirm.com", "https://kathirm.com"]);
 
 function isAllowedOrigin(origin) {
   if (ALLOWED_ORIGINS.has(origin)) return true;

@@ -1,7 +1,7 @@
 const USERNAME = "Uji_Gintoki_Bowl";
 const ANIME_FIELDS = "list_status{status,score,num_episodes_watched,updated_at},num_episodes,main_picture";
 const MANGA_FIELDS = "list_status{status,score,num_chapters_read,updated_at},num_chapters,main_picture";
-const ALLOWED_ORIGINS = new Set(["https://kathirm.com"]);
+const ALLOWED_ORIGINS = new Set(["https://kathirm.com", "https://widgets.kathirm.com"]);
 const DEFAULT_DAYS = 7;
 // Per-medium cap on the MAL fetch; comfortably above any plausible window's activity.
 const FETCH_LIMIT = 100;
