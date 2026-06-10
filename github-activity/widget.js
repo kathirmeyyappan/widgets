@@ -1,6 +1,6 @@
 const USERNAME = 'kathirmeyyappan';
 const API_BASE = 'https://api.github.com';
-const CACHE_KEY = 'gh-activity-v6';
+const CACHE_KEY = 'gh-activity-v7';
 const CACHE_TTL = 5 * 60 * 1000;
 const MAX_ITEMS = 10;
 
@@ -44,9 +44,9 @@ function buildHeatmapData(events) {
 	const now = new Date();
 	now.setHours(0, 0, 0, 0);
 
-	// Start at Sunday 13 complete weeks ago
+	// Start at Sunday 7 complete weeks ago
 	const start = new Date(now);
-	start.setDate(start.getDate() - start.getDay() - 13 * 7);
+	start.setDate(start.getDate() - start.getDay() - 7 * 7);
 
 	// End at Saturday of current week
 	const end = new Date(now);
@@ -60,7 +60,7 @@ function buildHeatmapData(events) {
 		cells.push({ date: isFuture ? null : dateStr, count: isFuture ? -1 : (counts[dateStr] ?? 0) });
 		cur.setDate(cur.getDate() + 1);
 	}
-	return cells; // 14 × 7 = 98 cells
+	return cells; // 8 × 7 = 56 cells
 }
 
 function renderHeatmap(cells) {
