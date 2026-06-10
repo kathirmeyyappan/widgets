@@ -1,6 +1,6 @@
 const USERNAME = 'kathirmeyyappan';
 const API_BASE = 'https://api.github.com';
-const CACHE_KEY = 'gh-activity-v4';
+const CACHE_KEY = 'gh-activity-v6';
 const CACHE_TTL = 5 * 60 * 1000;
 const MAX_ITEMS = 10;
 
@@ -87,7 +87,6 @@ function renderHeatmap(cells) {
 function parseEvents(events) {
 	const items = [];
 	const seenPushRepo = new Set();
-	const prRepoCount = {};
 
 	for (const ev of events) {
 		if (items.length >= MAX_ITEMS) break;
@@ -101,14 +100,14 @@ function parseEvents(events) {
 			if (seenPushRepo.has(repo)) continue;
 			seenPushRepo.add(repo);
 			const commits = ev.payload.commits ?? [];
-			const count = ev.payload.size > 0 ? ev.payload.size : commits.length;
+			const count = ev.payload.size > 0 ? ev.payload.size : (commits.length || 1);
 			const branch = (ev.payload.ref ?? '').replace('refs/heads/', '');
 			const msg = commits[commits.length - 1]?.message?.split('\n')[0];
 			items.push({
 				type: 'push', label: 'PUSH',
 				context: branch ? `${repoShort}:${branch}` : repoShort,
 				contextUrl: repoUrl,
-				desc: msg || `${count > 0 ? count : 1} commit${count !== 1 ? 's' : ''}`,
+				desc: msg || `${count} commit${count !== 1 ? 's' : ''}`,
 				descUrl: commits[0] ? `${repoUrl}/commit/${commits[0].sha}` : null,
 				date,
 			});
@@ -116,8 +115,6 @@ function parseEvents(events) {
 		} else if (ev.type === 'PullRequestEvent') {
 			const pr = ev.payload.pull_request;
 			const action = ev.payload.action;
-			prRepoCount[repo] = (prRepoCount[repo] ?? 0) + 1;
-			if (prRepoCount[repo] > 2) continue;
 			if (action === 'opened') {
 				items.push({
 					type: 'pr-open', label: 'PR',
