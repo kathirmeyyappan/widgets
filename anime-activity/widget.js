@@ -52,7 +52,7 @@ function renderEntry(e) {
 	const detail = document.createElement('div');
 	detail.className = 'entry-detail';
 	const progressStr = `${e.progress ?? 0}/${e.total && e.total > 0 ? e.total : '?'} ${e.unit}`;
-	const scoreStr = e.score && e.score > 0 ? `Scored ${e.score}` : 'Scored –';
+	const scoreStr = e.score && e.score > 0 ? `Scored ${e.score} / 10` : 'Scored – / 10';
 	detail.innerHTML = `${e.status}<span class="sep">·</span>${progressStr}<span class="sep">·</span>${scoreStr}`;
 	meta.appendChild(detail);
 
