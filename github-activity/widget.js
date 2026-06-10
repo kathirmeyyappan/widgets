@@ -1,6 +1,6 @@
 const USERNAME = 'kathirmeyyappan';
 const API_BASE = 'https://api.github.com';
-const CACHE_KEY = 'gh-activity-v2';
+const CACHE_KEY = 'gh-activity-v4';
 const CACHE_TTL = 5 * 60 * 1000;
 const MAX_ITEMS = 10;
 
@@ -64,37 +64,6 @@ function buildHeatmapData(events) {
 }
 
 function renderHeatmap(cells) {
-	heatmapEl.innerHTML = '';
-
-	// Month labels (14 columns, overflow-visible text)
-	const monthsRow = document.createElement('div');
-	monthsRow.className = 'heatmap-months';
-	for (let col = 0; col < 14; col++) {
-		const span = document.createElement('span');
-		const sunday = cells[col * 7];
-		if (sunday?.date) {
-			const d = new Date(sunday.date + 'T00:00:00');
-			if (col === 0 || d.getDate() <= 7) {
-				span.textContent = d.toLocaleString('en', { month: 'short' });
-			}
-		}
-		monthsRow.appendChild(span);
-	}
-	heatmapEl.appendChild(monthsRow);
-
-	// Day labels + grid
-	const body = document.createElement('div');
-	body.className = 'heatmap-body';
-
-	const dayLabels = document.createElement('div');
-	dayLabels.className = 'heatmap-day-labels';
-	['', 'Mon', '', 'Wed', '', 'Fri', ''].forEach(label => {
-		const span = document.createElement('span');
-		span.textContent = label;
-		dayLabels.appendChild(span);
-	});
-	body.appendChild(dayLabels);
-
 	const grid = document.createElement('div');
 	grid.className = 'heatmap-grid';
 	const level = n => n <= 0 ? 0 : n === 1 ? 1 : n <= 3 ? 2 : n <= 6 ? 3 : 4;
@@ -110,24 +79,7 @@ function renderHeatmap(cells) {
 		}
 		grid.appendChild(div);
 	}
-	body.appendChild(grid);
-	heatmapEl.appendChild(body);
-
-	// Legend
-	const legend = document.createElement('div');
-	legend.className = 'heatmap-legend';
-	const lessSpan = document.createElement('span');
-	lessSpan.textContent = 'Less';
-	legend.appendChild(lessSpan);
-	for (let lv = 0; lv <= 4; lv++) {
-		const div = document.createElement('div');
-		div.className = `heatmap-cell heatmap-lv${lv}`;
-		legend.appendChild(div);
-	}
-	const moreSpan = document.createElement('span');
-	moreSpan.textContent = 'More';
-	legend.appendChild(moreSpan);
-	heatmapEl.appendChild(legend);
+	heatmapEl.replaceChildren(grid);
 }
 
 // ── Activity list ─────────────────────────────────────────
@@ -135,6 +87,7 @@ function renderHeatmap(cells) {
 function parseEvents(events) {
 	const items = [];
 	const seenPushRepo = new Set();
+	const prRepoCount = {};
 
 	for (const ev of events) {
 		if (items.length >= MAX_ITEMS) break;
@@ -148,14 +101,14 @@ function parseEvents(events) {
 			if (seenPushRepo.has(repo)) continue;
 			seenPushRepo.add(repo);
 			const commits = ev.payload.commits ?? [];
-			const count = ev.payload.size ?? commits.length;
+			const count = ev.payload.size > 0 ? ev.payload.size : commits.length;
 			const branch = (ev.payload.ref ?? '').replace('refs/heads/', '');
-			const msg = commits[0]?.message?.split('\n')[0];
+			const msg = commits[commits.length - 1]?.message?.split('\n')[0];
 			items.push({
 				type: 'push', label: 'PUSH',
 				context: branch ? `${repoShort}:${branch}` : repoShort,
 				contextUrl: repoUrl,
-				desc: msg || `${count} commit${count !== 1 ? 's' : ''}`,
+				desc: msg || `${count > 0 ? count : 1} commit${count !== 1 ? 's' : ''}`,
 				descUrl: commits[0] ? `${repoUrl}/commit/${commits[0].sha}` : null,
 				date,
 			});
@@ -163,20 +116,20 @@ function parseEvents(events) {
 		} else if (ev.type === 'PullRequestEvent') {
 			const pr = ev.payload.pull_request;
 			const action = ev.payload.action;
+			prRepoCount[repo] = (prRepoCount[repo] ?? 0) + 1;
+			if (prRepoCount[repo] > 2) continue;
 			if (action === 'opened') {
 				items.push({
 					type: 'pr-open', label: 'PR',
 					context: repoShort, contextUrl: repoUrl,
-					desc: pr.title, descUrl: pr.html_url,
-					prNumber: pr.number, actionLabel: 'opened',
+					desc: pr.title || `PR #${pr.number}`, descUrl: pr.html_url,
 					date,
 				});
 			} else if (action === 'closed' && pr?.merged) {
 				items.push({
 					type: 'pr-merge', label: 'MERGE',
 					context: repoShort, contextUrl: repoUrl,
-					desc: pr.title, descUrl: pr.html_url,
-					prNumber: pr.number, actionLabel: 'merged',
+					desc: pr.title || `PR #${pr.number}`, descUrl: pr.html_url,
 					date,
 				});
 			}
@@ -184,7 +137,7 @@ function parseEvents(events) {
 		} else if (ev.type === 'PullRequestReviewEvent') {
 			const pr = ev.payload.pull_request;
 			const state = (ev.payload.review?.state ?? 'commented').toLowerCase();
-			const actionLabel = {
+			const stateLabel = {
 				approved: 'approved',
 				changes_requested: 'changes requested',
 				commented: 'commented on',
@@ -192,28 +145,8 @@ function parseEvents(events) {
 			items.push({
 				type: 'review', label: 'REV',
 				context: repoShort, contextUrl: repoUrl,
-				desc: pr.title,
+				desc: `${stateLabel}: ${pr.title || `PR #${pr.number}`}`,
 				descUrl: ev.payload.review?.html_url ?? pr.html_url,
-				prNumber: pr.number, actionLabel,
-				date,
-			});
-
-		} else if (ev.type === 'CreateEvent' && ev.payload.ref_type === 'repository') {
-			items.push({
-				type: 'repo', label: 'REPO',
-				context: repoShort, contextUrl: repoUrl,
-				desc: ev.payload.description || 'initialized repository',
-				descUrl: null,
-				date,
-			});
-
-		} else if (ev.type === 'ForkEvent') {
-			const forkee = ev.payload.forkee;
-			items.push({
-				type: 'fork', label: 'FORK',
-				context: repoShort, contextUrl: forkee?.html_url ?? repoUrl,
-				desc: 'forked repository',
-				descUrl: null,
 				date,
 			});
 		}
@@ -222,11 +155,7 @@ function parseEvents(events) {
 	return items;
 }
 
-const PR_TYPES = new Set(['pr-open', 'pr-merge', 'review']);
-
 function renderEntry(item) {
-	if (PR_TYPES.has(item.type)) return renderPREntry(item);
-
 	const li = document.createElement('li');
 	li.className = `entry entry-${item.type}`;
 
@@ -276,72 +205,6 @@ function renderEntry(item) {
 	li.appendChild(timeEl);
 
 	return li;
-}
-
-function renderPREntry(item) {
-	const li = document.createElement('li');
-	li.className = `entry entry-${item.type} entry--pr`;
-
-	const badge = document.createElement('span');
-	badge.className = `badge badge-${item.type}`;
-	badge.textContent = item.label;
-	li.appendChild(badge);
-
-	const body = document.createElement('div');
-	body.className = 'entry-body--pr';
-
-	const title = document.createElement('a');
-	title.className = 'pr-title';
-	title.href = item.descUrl ?? item.contextUrl;
-	title.target = '_blank';
-	title.rel = 'noopener';
-	title.textContent = item.desc;
-	title.title = item.desc;
-	body.appendChild(title);
-
-	const sub = document.createElement('div');
-	sub.className = 'pr-sub';
-
-	const repoLink = document.createElement('a');
-	repoLink.className = 'pr-repo';
-	repoLink.href = item.contextUrl;
-	repoLink.target = '_blank';
-	repoLink.rel = 'noopener';
-	repoLink.textContent = item.context;
-	sub.appendChild(repoLink);
-
-	if (item.prNumber) {
-		appendSep(sub);
-		const num = document.createElement('span');
-		num.className = 'pr-num';
-		num.textContent = `#${item.prNumber}`;
-		sub.appendChild(num);
-	}
-
-	if (item.actionLabel) {
-		appendSep(sub);
-		const act = document.createElement('span');
-		act.className = 'pr-action';
-		act.textContent = item.actionLabel;
-		sub.appendChild(act);
-	}
-
-	body.appendChild(sub);
-	li.appendChild(body);
-
-	const timeEl = document.createElement('span');
-	timeEl.className = 'entry-time';
-	timeEl.textContent = relativeTime(item.date);
-	li.appendChild(timeEl);
-
-	return li;
-}
-
-function appendSep(parent) {
-	const sep = document.createElement('span');
-	sep.className = 'pr-sep';
-	sep.textContent = '·';
-	parent.appendChild(sep);
 }
 
 // ── Fetch ─────────────────────────────────────────────────
