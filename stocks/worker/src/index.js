@@ -1,4 +1,4 @@
-const PROD_ORIGIN = 'https://kathirm.com';
+const PROD_ORIGIN = 'https://widgets.kathirm.com';
 
 function isAllowedOrigin(origin) {
   if (origin === PROD_ORIGIN) return true;
