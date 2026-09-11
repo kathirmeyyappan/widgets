@@ -20,4 +20,10 @@ If MAL ever tightens this and starts requiring Bearer auth on this endpoint, the
 
 ## Endpoint
 
-`GET /?days=N` → `{ entries: [...] }` — every anime + manga update from the last N days, merged and sorted by date desc. Each item: `{ type, unit, title, url, image, status, score, progress, total, date }`. `plan_to_watch` / `plan_to_read` entries are filtered out. `days` clamps to 1–90, defaults to 7.
+`GET /?days=N` → `{ entries, gate, gateOk }`.
+
+`entries` is every anime + manga update from the last N days, merged and sorted by date desc. Each item: `{ id, type, unit, title, url, image, status, score, progress, total, nsfw, date }`. `plan_to_watch` / `plan_to_read` are filtered out. `days` clamps to 1–90, defaults to 7.
+
+`gate` maps `"{type}:{id}"` to the ISO timestamp of the progress event MAL last published on its RSS feeds, which only move on episode/chapter bumps. It's returned raw and unapplied — the client decides how to use it. `gateOk` is false when the feeds couldn't be read, in which case `gate` is null and the client falls back to showing everything with a degraded-feed warning.
+
+The feeds are edge-cached for 60s. Longer TTLs hurt: a bump on a series not yet in the cached feed would be filtered out client-side until the cache turns over.

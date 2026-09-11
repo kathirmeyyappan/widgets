@@ -1,10 +1,24 @@
-// Worker returns a single merged-and-sorted list of recent updates.
+// Worker returns raw MAL API entries plus an RSS-derived progress gate.
+// Deciding how to apply that gate lives here so it can be changed without a
+// worker redeploy.
 const ENDPOINT = 'https://anime-activity-widget.kathirmey.workers.dev';
 const DAYS = 10;
 
 const card = document.getElementById('card');
 const entriesEl = document.getElementById('entries');
 const messageEl = document.getElementById('message');
+const banner = document.getElementById('banner');
+const bannerText = document.getElementById('banner-text');
+
+document.getElementById('banner-dismiss').addEventListener('click', () => {
+	banner.classList.remove('visible');
+});
+
+function warn(text) {
+	console.warn(`[anime-activity] ${text}`);
+	bannerText.textContent = text;
+	banner.classList.add('visible');
+}
 
 const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
@@ -17,6 +31,29 @@ function relativeTime(iso) {
 	if (abs < 2592000) return rtf.format(Math.round(diffSec / 86400), 'day');
 	if (abs < 31536000) return rtf.format(Math.round(diffSec / 2592000), 'month');
 	return rtf.format(Math.round(diffSec / 31536000), 'year');
+}
+
+// MAL stamps list_status.updated_at on any edit, so rescoring a show finished
+// months ago is indistinguishable from watching it today. The RSS feeds only
+// move on episode/chapter bumps, so an entry appearing there inside the window
+// is proof the update was real progress.
+//
+// Membership only — every rendered value still comes from the API, including
+// the timestamp. That matters for liveness: bump a show you were already
+// watching and a stale cached feed still vouches for it, while the date shown
+// stays live.
+//
+// NSFW titles are stripped from the feeds entirely, so the gate can't see them
+// and they pass through untouched. `nsfw` is null when MAL omits the field,
+// which also bypasses — failing open beats silently dropping a title.
+function applyGate(entries, gate) {
+	const cutoff = Date.now() - DAYS * 86400000;
+	const progressed = new Set(
+		Object.entries(gate)
+			.filter(([, iso]) => new Date(iso).getTime() >= cutoff)
+			.map(([key]) => key),
+	);
+	return entries.filter(e => e.nsfw !== 'white' || progressed.has(`${e.type}:${e.id}`));
 }
 
 function renderEntry(e) {
@@ -73,17 +110,24 @@ async function load() {
 	try {
 		const res = await fetch(`${ENDPOINT}?days=${DAYS}`);
 		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		const { entries = [], error } = await res.json();
+		const { entries = [], gate, gateOk, error } = await res.json();
 		if (error) throw new Error(error);
 
-		console.log(`[anime-activity] ${entries.length} entries`, entries);
+		let shown = entries;
+		if (gateOk && gate) {
+			shown = applyGate(entries, gate);
+		} else {
+			warn('Degraded feed: the MAL RSS poll failed, so updates could not be checked for real progress. Some entries may reflect score or status edits rather than new episodes.');
+		}
 
-		if (entries.length === 0) {
+		console.log(`[anime-activity] ${entries.length} entries, ${shown.length} after gate`, { shown, gate, gateOk });
+
+		if (shown.length === 0) {
 			card.dataset.state = 'empty';
 			messageEl.textContent = 'No recent activity.';
 			return;
 		}
-		entriesEl.replaceChildren(...entries.map(renderEntry));
+		entriesEl.replaceChildren(...shown.map(renderEntry));
 		card.dataset.state = 'ready';
 	} catch (err) {
 		console.error('[anime-activity] failed to load', err);
