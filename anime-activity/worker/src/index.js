@@ -71,13 +71,8 @@ async function fetchMedium(clientId, kind) {
     .map(item => normalize(item, kind));
 }
 
-// "{kind}:{id}" -> ISO timestamp of the most recent progress event MAL
-// published. Null if the feeds can't be read, which disables the gate rather
-// than blanking the widget.
-//
-// Deliberately uncached: the widget fetches once per page load and never polls,
-// so a TTL would almost never produce a hit and would only ever delay a new
-// title's first appearance.
+// "{kind}:{id}" -> ISO timestamp of the latest progress event. Null if the
+// feeds can't be read, which disables the gate rather than blanking the widget.
 async function fetchProgressGate() {
   const gate = new Map();
   try {
@@ -121,16 +116,14 @@ export default {
         fetchProgressGate(),
       ]);
 
-      // The feeds are consulted for membership only — nothing here re-dates an
-      // entry. Every rendered value, timestamp included, stays the API's own,
-      // so a feed lagging behind can't make a fresh bump display as old.
+      // Membership only — entries keep the API timestamp, so a lagging feed
+      // can't make a fresh bump display as old.
       const entries = [...anime, ...manga]
         .filter(e => {
           if (new Date(e.date).getTime() < cutoff) return false;
           if (!gate) return true;
-          // R+/Rx titles are stripped from the feeds, so their absence proves
-          // nothing. Null rating means MAL didn't say, so fail open too —
-          // showing a stale entry beats silently dropping a real one.
+          // Absent from the feeds regardless, so gating would delete exactly
+          // what nsfw=true exists to include.
           if (e.nsfw !== "white") return true;
           const progressedAt = gate.get(`${e.type}:${e.id}`);
           return Boolean(progressedAt) && new Date(progressedAt).getTime() >= cutoff;

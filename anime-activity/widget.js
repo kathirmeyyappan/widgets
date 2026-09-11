@@ -88,8 +88,6 @@ async function load() {
 		const { entries = [], gateOk, error } = await res.json();
 		if (error) throw new Error(error);
 
-		// Without the RSS cross-check the worker can't tell a new episode from a
-		// score edit, so say so rather than quietly showing a noisier feed.
 		if (!gateOk) {
 			warn('Degraded feed: the MAL RSS poll failed, so updates could not be checked for real progress. Some entries may reflect score or status edits rather than new episodes.');
 		}
