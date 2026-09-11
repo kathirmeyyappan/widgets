@@ -5,6 +5,18 @@ const DAYS = 10;
 const card = document.getElementById('card');
 const entriesEl = document.getElementById('entries');
 const messageEl = document.getElementById('message');
+const banner = document.getElementById('banner');
+const bannerText = document.getElementById('banner-text');
+
+document.getElementById('banner-dismiss').addEventListener('click', () => {
+	banner.classList.remove('visible');
+});
+
+function warn(text) {
+	console.warn(`[anime-activity] ${text}`);
+	bannerText.textContent = text;
+	banner.classList.add('visible');
+}
 
 const rtf = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 
@@ -73,10 +85,16 @@ async function load() {
 	try {
 		const res = await fetch(`${ENDPOINT}?days=${DAYS}`);
 		if (!res.ok) throw new Error(`HTTP ${res.status}`);
-		const { entries = [], error } = await res.json();
+		const { entries = [], gateOk, error } = await res.json();
 		if (error) throw new Error(error);
 
-		console.log(`[anime-activity] ${entries.length} entries`, entries);
+		// Without the RSS cross-check the worker can't tell a new episode from a
+		// score edit, so say so rather than quietly showing a noisier feed.
+		if (!gateOk) {
+			warn('Degraded feed: the MAL RSS poll failed, so updates could not be checked for real progress. Some entries may reflect score or status edits rather than new episodes.');
+		}
+
+		console.log(`[anime-activity] ${entries.length} entries (gate ${gateOk ? 'ok' : 'unavailable'})`, entries);
 
 		if (entries.length === 0) {
 			card.dataset.state = 'empty';
