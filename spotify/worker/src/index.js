@@ -3,11 +3,15 @@ const SPOTIFY_NOW_PLAYING_URL = "https://api.spotify.com/v1/me/player/currently-
 const SPOTIFY_RECENTLY_PLAYED_URL = "https://api.spotify.com/v1/me/player/recently-played?limit=1";
 const ALLOWED_ORIGINS = new Set(["https://widgets.kathirm.com", "https://kathirm.com"]);
 
+// Kathir World (github.com/kathirmeyyappan/world) draws this widget on a wall in-game and fetches
+// from the page it's served from: the Modal app "kathir-world", whatever its workspace or function.
+const KATHIR_WORLD = /^[a-z0-9-]+--kathir-world-[a-z0-9-]+\.modal\.run$/;
+
 function isAllowedOrigin(origin) {
   if (ALLOWED_ORIGINS.has(origin)) return true;
   try {
     const url = new URL(origin);
-    return url.hostname === "127.0.0.1";
+    return url.hostname === "127.0.0.1" || url.hostname === "localhost" || KATHIR_WORLD.test(url.hostname);
   } catch { return false; }
 }
 
