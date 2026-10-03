@@ -61,7 +61,7 @@ Cloudflare Worker (spotify-widget.kathirmey.workers.dev)
 - `recentCache`, `recentCachedAt`
 
 ### CORS
-- Allowed origins: `https://kathirm.com`, `https://widgets.kathirm.com`, Kathir World's Modal app (`*--kathir-world-*.modal.run`, which draws this widget on a wall in-game), and `127.0.0.1` / `localhost` (any port)
+- Allowed origins: `https://kathirm.com`, `https://widgets.kathirm.com`, Kathir World's Modal app (`*--kathir-world-*.modal.run` / `.modal.direct`, which draws this widget on a wall in-game), and `127.0.0.1` / `localhost` (any port)
 - All responses always include CORS headers, even on errors, so the browser never gets blocked by a missing header on a failed request.
 
 ### Error handling
