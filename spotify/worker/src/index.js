@@ -4,8 +4,9 @@ const SPOTIFY_RECENTLY_PLAYED_URL = "https://api.spotify.com/v1/me/player/recent
 const ALLOWED_ORIGINS = new Set(["https://widgets.kathirm.com", "https://kathirm.com"]);
 
 // Kathir World (github.com/kathirmeyyappan/world) draws this widget on a wall in-game and fetches
-// from the page it's served from: the Modal app "kathir-world", whatever its workspace or function.
-const KATHIR_WORLD = /^[a-z0-9-]+--kathir-world-[a-z0-9-]+\.modal\.run$/;
+// from the page it's served from: the Modal app "kathir-world", whatever its workspace, function
+// or region (e.g. kathirmey--kathir-world-room.us-east.modal.direct).
+const KATHIR_WORLD = /^[a-z0-9-]+--kathir-world-[a-z0-9-]+(\.[a-z0-9-]+)?\.modal\.(run|direct)$/;
 
 function isAllowedOrigin(origin) {
   if (ALLOWED_ORIGINS.has(origin)) return true;
