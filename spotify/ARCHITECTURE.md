@@ -38,7 +38,7 @@ Cloudflare Worker (spotify-widget.kathirmey.workers.dev)
 ### Request flow (per incoming poll)
 
 ```
-1. Check CORS — allow kathirm.com + 127.0.0.1 (local dev), reject others
+1. Check CORS — allow kathirm.com, Kathir World and local dev, reject others
 2. Get access token (see token cache below)
 3. GET /me/player/currently-playing
    ├─ 200 → return track with isPlaying: true
@@ -61,7 +61,7 @@ Cloudflare Worker (spotify-widget.kathirmey.workers.dev)
 - `recentCache`, `recentCachedAt`
 
 ### CORS
-- Allowed origins: `https://kathirm.com`, `http://127.0.0.1` (any port)
+- Allowed origins: `https://kathirm.com`, `https://widgets.kathirm.com`, Kathir World's Modal app (`*--kathir-world-*.modal.run`, which draws this widget on a wall in-game), and `127.0.0.1` / `localhost` (any port)
 - All responses always include CORS headers, even on errors, so the browser never gets blocked by a missing header on a failed request.
 
 ### Error handling
