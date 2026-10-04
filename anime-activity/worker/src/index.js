@@ -19,9 +19,20 @@ const STATUS_LABEL = {
 };
 const SKIP = new Set(["plan_to_watch", "plan_to_read"]);
 
+// Kathir World (github.com/kathirmeyyappan/world) draws this widget on a wall in-game and fetches
+// from the page it's served from: the Modal app "kathir-world", whatever its workspace, function
+// or region (e.g. kathirmey--kathir-world-room.us-east.modal.direct).
+const KATHIR_WORLD = /^[a-z0-9-]+--kathir-world-[a-z0-9-]+(\.[a-z0-9-]+)?\.modal\.(run|direct)$/;
+
+// Where covers may be fetched from on a caller's behalf (see /cover below).
+const COVER_HOST = "cdn.myanimelist.net";
+
 function isAllowedOrigin(origin) {
   if (ALLOWED_ORIGINS.has(origin)) return true;
-  try { return new URL(origin).hostname === "127.0.0.1"; } catch { return false; }
+  try {
+    const url = new URL(origin);
+    return url.hostname === "127.0.0.1" || url.hostname === "localhost" || KATHIR_WORLD.test(url.hostname);
+  } catch { return false; }
 }
 
 function corsHeaders(origin) {
@@ -98,6 +109,25 @@ async function fetchProgressGate() {
   }
 }
 
+// A MAL cover, passed through with CORS headers: Kathir World paints covers onto a canvas that
+// becomes a WebGL texture, which a cross-origin image without them would taint. Only MAL's image
+// CDN, so this can't be used to fetch anything else; cached at the edge for a day.
+async function cover(target, origin) {
+  let src;
+  try { src = new URL(target ?? ""); } catch { return new Response("bad url", { status: 400 }); }
+  if (src.protocol !== "https:" || src.hostname !== COVER_HOST) return new Response("not a MAL cover", { status: 400 });
+  const res = await fetch(src.toString(), { cf: { cacheEverything: true, cacheTtl: 86400 } });
+  if (!res.ok) return new Response(null, { status: res.status, headers: corsHeaders(origin) });
+  return new Response(res.body, {
+    headers: {
+      "Content-Type": res.headers.get("Content-Type") ?? "image/jpeg",
+      "Cache-Control": "public, max-age=86400",
+      Vary: "Origin",
+      ...corsHeaders(origin),
+    },
+  });
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin") ?? "";
@@ -105,7 +135,10 @@ export default {
       return new Response(null, { headers: corsHeaders(origin) });
     }
 
-    const params = new URL(request.url).searchParams;
+    const url = new URL(request.url);
+    if (url.pathname === "/cover") return cover(url.searchParams.get("url"), origin);
+
+    const params = url.searchParams;
     const days = Math.max(1, Math.min(90, parseInt(params.get("days"), 10) || DEFAULT_DAYS));
     const cutoff = Date.now() - days * 86400000;
 

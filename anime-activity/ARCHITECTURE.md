@@ -16,7 +16,8 @@ Hits `/v2/users/{username}/animelist` + `/mangalist` in parallel (each capped at
 
 - Single secret: `MAL_CLIENT_ID` (Cloudflare). Never expires.
 - `?days=N` clamps 1–90, defaults to 7.
-- Same CORS pattern as the Spotify worker.
+- Same CORS pattern as the Spotify worker, Kathir World's Modal hosts included.
+- `/cover?url=` passes a `cdn.myanimelist.net` cover through with CORS headers (cached a day), for Kathir World, which paints covers onto a WebGL texture that a plain cross-origin image would taint.
 
 ### The progress gate
 
